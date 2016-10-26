@@ -13,26 +13,9 @@ fprintf( ...
 global keyframes;
 keyframes = {};
 
-for numIterations = 1:1
-    % User clicks many times on mesh at locations of control points
-    try
-        V = [reshape(x, [numel(x),1]), reshape(y, [numel(y),1])];
-        F = tri;
-        [Cx,Cy] = getpts;
-        IDX = knnsearch(V, [Cx,Cy]);
-        for i = 1:length(IDX)
-            index = IDX(i,1);
-            Cx(i) = V(index,1);
-            Cy(i) = V(index,2);
-        end
-    catch e
-        % quit early, stop script
-        return
-    end
-    
-    C = [Cx, Cy];
-    simple_deform(V, F, C, IDX)
-end
+V = [reshape(x, [numel(x),1]), reshape(y, [numel(y),1])];
+F = tri;
+simple_deform(V, F)
 
 
 
@@ -43,9 +26,9 @@ V = varargin{1};
 % face indices of mesh
 F = varargin{2};
 % control vertices of skeleton
-C = varargin{3};
+C = V;
 % what indices of V do C correspond to
-I = varargin{4};
+I = 1:length(V);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Set default parameters
@@ -94,13 +77,23 @@ axis manual
 % plot bones
 hold on;
 
+saveKeyframeButton = uicontrol(gcf,'Style','pushbutton',...
+    'String','Save Keyframe',...
+    'Position',[50 0 90 20],...
+    'Callback', @SaveKeyframe);
+
+showKeyframeButton = uicontrol(gcf,'Style','slider',...
+    'String','Save Keyframe',...
+    'Position',[400 0 120 20],...
+    'Callback', @ShowKeyframe);
+
 % plot the control points (use 3D plot and fake a depth offset by pushing
 % control points up in z-direction)
 
 C_plot = scatter3( ...
     C(:,1),C(:,2),0.1+0*C(:,1), ...
     'o','MarkerFaceColor',[0.9 0.8 0.1], 'MarkerEdgeColor','k',...
-    'LineWidth',2,'SizeData',100, ...
+    'LineWidth',2,'SizeData',20, ...
     'ButtonDownFcn',@oncontrolsdown);
 hold off;
 
@@ -133,7 +126,7 @@ return
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Callback for mouse down on control points
-    function oncontrolsdown(src,ev)
+    function oncontrolsdown(src,env)
         % get current mouse position, and remember old one
         down_pos=get(gca,'currentpoint');
         down_pos=[down_pos(1,1,1) down_pos(1,2,1)];
@@ -142,14 +135,14 @@ return
         % keep track of control point positions at mouse down
         g_Deform(gid).new_C = [get(C_plot,'XData')' get(C_plot,'YData')'];
         % get index of closest control point
-        [minD,ci] =  ...
+        [~,ci] =  ...
             min(sum((g_Deform(gid).new_C(:,1:2) - ...
             repmat(down_pos,size(g_Deform(gid).new_C,1),1)).^2,2));
         % keep track of mesh vertices at mouse down
         down_V = get(g_Deform(gid).tsh,'Vertices');
         down_V = down_V(:,1:2);
         
-        % tell window that drag and up events should be handled by controls
+        % tell window that drag and up envents should be handled by controls
         set(gcf,'windowbuttonmotionfcn',@oncontrolsdrag)
         set(gcf,'windowbuttonupfcn',@oncontrolsup)
         set(gcf,'KeyPressFcn',@onkeypress)
@@ -164,7 +157,7 @@ return
     end
 
 % Callback for mouse drag on control points
-    function oncontrolsdrag(src,ev)
+    function oncontrolsdrag(src,env)
         % keep last drag position
         last_drag_pos=drag_pos;
         % get current mouse position
@@ -203,8 +196,8 @@ return
     end
 
 % Callback for mouse release of control points
-    function oncontrolsup(src,ev)
-        % Tell window to handle drag and up events itself
+    function oncontrolsup(src,env)
+        % Tell window to handle drag and up envents itself
         set(gcf,'windowbuttonmotionfcn','');
         set(gcf,'windowbuttonupfcn','');
         cur_V = get(g_Deform(gid).tsh,'Vertices');
@@ -216,29 +209,45 @@ return
         axis(reshape([win_min;win_max],1,2*size(cur_V,2)))
     end
 
-    function onkeypress(src,ev)
-        global keyframes;
-        if(strcmp(ev.Character,'r'))
+    function onkeypress(src,env)
+        if(strcmp(env.Character,'r'))
             
             % Refresh the state of the mesh
             g_Deform(gid).new_C = C;
             g_Deform(gid).R = zeros(np,1);
             update_positions();
             
-        elseif(strcmp(ev.Character,'u'))
+        elseif(strcmp(env.Character,'u'))
             update_positions();
-            
-        elseif(strcmp(ev.Character,'s'))
-            % Save the current statement of the mesh as a keyframe
-            keyframes = [keyframes, g_Deform(gid)];
-            display(keyframes)
-            
-        elseif(strcmp(ev.Character,'d'))
-            % Show a very basic animation between all the keyframes
-            % Use a simple linear interpolation of the vertex positions.
-            
         end
+    end
+
+
+    function SaveKeyframe(src, env)
+        global keyframes;
+        copyOfCurrent = {};
+        copyOfCurrent.Vertices = g_Deform(gid).tsh.Vertices;
+        copyOfCurrent.Faces = g_Deform(gid).tsh.Faces;
         
+        keyframes = [keyframes, copyOfCurrent];
+        fprintf('Saved 1 new keyframe. %d total keyframes.\n', numel(keyframes));
+    end
+
+    function ShowKeyframe(src,env)
+        global keyframes;
+        numKeyframes = numel(keyframes);
+        if numKeyframes == 0
+            return 
+        end
+        position = src.Value;
+        whichKeyframe = round( (numKeyframes - 1) * position + 1);
+        display(whichKeyframe);
+        set(g_Deform(gid).tsh,'Vertices',keyframes{whichKeyframe}.Vertices(:,1:2));
+        set(C_plot,'XData',keyframes{whichKeyframe}.Vertices(:,1));
+        set(C_plot,'YData',keyframes{whichKeyframe}.Vertices(:,2));
+    end
+    
+    function ShowAnimation(src,env)
         
     end
 
