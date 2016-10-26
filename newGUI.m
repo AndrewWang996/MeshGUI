@@ -148,7 +148,7 @@ return
         down_V = get(g_Deform(gid).tsh,'Vertices');
         down_V = down_V(:,1:2);
         
-        % tell window that drag and up eventents should be handled by controls
+        % tell window that drag and up events should be handled by controls
         set(gcf,'windowbuttonmotionfcn',@oncontrolsdrag)
         set(gcf,'windowbuttonupfcn',@oncontrolsup)
         set(gcf,'KeyPressFcn',@onkeypress)
@@ -203,7 +203,7 @@ return
 
 % Callback for mouse release of control points
     function oncontrolsup(src,event)
-        % Tell window to handle drag and up eventents itself
+        % Tell window to handle drag and up events itself
         set(gcf,'windowbuttonmotionfcn','');
         set(gcf,'windowbuttonupfcn','');
         cur_V = get(g_Deform(gid).tsh,'Vertices');
