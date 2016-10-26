@@ -13,6 +13,10 @@ fprintf( ...
 global keyframes;
 keyframes = {};
 
+% obj = parseObjFile('Meshes/elephant.obj');
+% V = obj.vertex(:,1:2);
+% F = obj.faces;
+
 V = [reshape(x, [numel(x),1]), reshape(y, [numel(y),1])];
 F = tri;
 simple_deform(V, F)
@@ -265,11 +269,11 @@ return
             );
         end
         
-        display(allVertices);
+        % display(allVertices);
         n = 10;
         
         for t = 0:1.0/n:1
-            w = linearWeight(2,t);
+            w = linearWeight(numKeyframes,t);
             new_Vertices = allVertices * w;
             xdata = real(new_Vertices);
             ydata = imag(new_Vertices);
