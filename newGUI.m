@@ -84,8 +84,14 @@ saveKeyframeButton = uicontrol(gcf,'Style','pushbutton',...
 
 showKeyframeButton = uicontrol(gcf,'Style','slider',...
     'String','Save Keyframe',...
-    'Position',[400 0 120 20],...
-    'Callback', @ShowKeyframe);
+    'Position',[400 0 120 20]);
+addlistener(showKeyframeButton, ...
+    'ContinuousValueChange', @ShowKeyframe);
+
+showAnimation = uicontrol(gcf,'Style','pushbutton',...
+    'String','Show Animation',...
+    'Position',[200 0 90 20],...
+    'Callback',@ShowAnimation);
 
 % plot the control points (use 3D plot and fake a depth offset by pushing
 % control points up in z-direction)
@@ -126,7 +132,7 @@ return
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Callback for mouse down on control points
-    function oncontrolsdown(src,env)
+    function oncontrolsdown(src,event)
         % get current mouse position, and remember old one
         down_pos=get(gca,'currentpoint');
         down_pos=[down_pos(1,1,1) down_pos(1,2,1)];
@@ -142,7 +148,7 @@ return
         down_V = get(g_Deform(gid).tsh,'Vertices');
         down_V = down_V(:,1:2);
         
-        % tell window that drag and up envents should be handled by controls
+        % tell window that drag and up eventents should be handled by controls
         set(gcf,'windowbuttonmotionfcn',@oncontrolsdrag)
         set(gcf,'windowbuttonupfcn',@oncontrolsup)
         set(gcf,'KeyPressFcn',@onkeypress)
@@ -157,7 +163,7 @@ return
     end
 
 % Callback for mouse drag on control points
-    function oncontrolsdrag(src,env)
+    function oncontrolsdrag(src,event)
         % keep last drag position
         last_drag_pos=drag_pos;
         % get current mouse position
@@ -196,8 +202,8 @@ return
     end
 
 % Callback for mouse release of control points
-    function oncontrolsup(src,env)
-        % Tell window to handle drag and up envents itself
+    function oncontrolsup(src,event)
+        % Tell window to handle drag and up eventents itself
         set(gcf,'windowbuttonmotionfcn','');
         set(gcf,'windowbuttonupfcn','');
         cur_V = get(g_Deform(gid).tsh,'Vertices');
@@ -209,21 +215,21 @@ return
         axis(reshape([win_min;win_max],1,2*size(cur_V,2)))
     end
 
-    function onkeypress(src,env)
-        if(strcmp(env.Character,'r'))
+    function onkeypress(src,event)
+        if(strcmp(event.Character,'r'))
             
             % Refresh the state of the mesh
             g_Deform(gid).new_C = C;
             g_Deform(gid).R = zeros(np,1);
             update_positions();
             
-        elseif(strcmp(env.Character,'u'))
+        elseif(strcmp(event.Character,'u'))
             update_positions();
         end
     end
 
 
-    function SaveKeyframe(src, env)
+    function SaveKeyframe(src, event)
         global keyframes;
         copyOfCurrent = {};
         copyOfCurrent.Vertices = g_Deform(gid).tsh.Vertices;
@@ -233,7 +239,7 @@ return
         fprintf('Saved 1 new keyframe. %d total keyframes.\n', numel(keyframes));
     end
 
-    function ShowKeyframe(src,env)
+    function ShowKeyframe(src,event)
         global keyframes;
         numKeyframes = numel(keyframes);
         if numKeyframes == 0
@@ -241,13 +247,37 @@ return
         end
         position = src.Value;
         whichKeyframe = round( (numKeyframes - 1) * position + 1);
-        display(whichKeyframe);
+        % display(whichKeyframe);
         set(g_Deform(gid).tsh,'Vertices',keyframes{whichKeyframe}.Vertices(:,1:2));
         set(C_plot,'XData',keyframes{whichKeyframe}.Vertices(:,1));
         set(C_plot,'YData',keyframes{whichKeyframe}.Vertices(:,2));
     end
     
-    function ShowAnimation(src,env)
+    function ShowAnimation(src,event)
+        global keyframes;
+        numKeyframes = numel(keyframes);
+        allVertices = zeros(size(C,1), numKeyframes);
+       
+        for whichKeyframe = 1:numKeyframes
+            allVertices(:,whichKeyframe) = complex(...
+                keyframes{whichKeyframe}.Vertices(:,1),...
+                keyframes{whichKeyframe}.Vertices(:,2)...
+            );
+        end
+        
+        display(allVertices);
+        n = 10;
+        
+        for t = 0:1.0/n:1
+            w = linearWeight(2,t);
+            new_Vertices = allVertices * w;
+            xdata = real(new_Vertices);
+            ydata = imag(new_Vertices);
+            set(C_plot,'XData',xdata);
+            set(C_plot,'YData',ydata);
+            set(g_Deform(gid).tsh, 'Vertices', [xdata,ydata]);
+            pause(0.1);
+        end
         
     end
 
