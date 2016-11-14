@@ -13,12 +13,10 @@ fprintf( ...
 global keyframes;
 keyframes = {};
 
-% obj = parseObjFile('Meshes/elephant.obj');
-% V = obj.vertex(:,1:2);
-% F = obj.faces;
+[V,F] = readOff('Meshes/red_dragon_75_fixed_re.off');
 
-V = [reshape(x, [numel(x),1]), reshape(y, [numel(y),1])];
-F = tri;
+% V = [reshape(x, [numel(x),1]), reshape(y, [numel(y),1])];
+% F = tri;
 simple_deform(V, F)
 
 
@@ -103,7 +101,7 @@ showAnimation = uicontrol(gcf,'Style','pushbutton',...
 C_plot = scatter3( ...
     C(:,1),C(:,2),0.1+0*C(:,1), ...
     'o','MarkerFaceColor',[0.9 0.8 0.1], 'MarkerEdgeColor','k',...
-    'LineWidth',2,'SizeData',20, ...
+    'LineWidth',2,'SizeData',10, ...
     'ButtonDownFcn',@oncontrolsdown);
 hold off;
 
