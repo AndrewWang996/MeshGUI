@@ -14,7 +14,8 @@ sigma1 = 1.5;
 lambda = 100;
 
 % Load meshj
-[X,T] = readOff('Meshes/llr2.off');
+filename = 'Meshes/llr2.off';
+[X,T] = readOff(filename);
 X = X / max(abs(X(:))); % rescale to unit box
 X = X(:,1)+1i*X(:,2); % convert vertices to complex numbers
 
@@ -36,30 +37,7 @@ plot(X(handles),'r.','markersize',50,'linewidth',10);
 title('Desired deformation');
 
 %% Find boundary of the triangle mesh
-
-[edges,~,trianglesToEdges] = unique(sort([T(:,1) T(:,2) ; T(:,2) T(:,3) ; T(:,3) T(:,1)],2),'rows');
-trianglesToEdges = reshape(trianglesToEdges,[],3);
-
-neighboringTriangles = accumarray([trianglesToEdges(:) ones(3*nf,1)],ones(3*nf,1));
-boundaryEdges = find(neighboringTriangles==1);
-
-be = edges(boundaryEdges,:);
-adj = sparse(be(:,1),be(:,2),ones(size(be,1),1),nv,nv);
-adj = adj+adj';
-boundaryLoop = dfsearch(graph(adj),be(1));
-
-nb = length(boundaryLoop);
-
-% Make sure it's counter-clockwise -- magic formula
-xb = real(X(boundaryLoop));
-yb = imag(X(boundaryLoop));
-dx = circshift(xb,-1)-xb;
-yy = circshift(yb,-1)+yb;
-ind = sum(dx.*yy);
-
-if ind > 0 % clockwise!
-    boundaryLoop = boundaryLoop(end:-1:1);
-end
+boundaryLoop = boundaryPicker(filename);
                          
 %% Do Cauchy coordinates
 
