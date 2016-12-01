@@ -1,8 +1,9 @@
 
+%{
 [x,y] = meshgrid(1:10, 1:10);
 tri = delaunay(x,y);
 handle = trimesh(tri,x,y);
-
+%}
 axis equal;
 fprintf( ...
     ['\nCLICK on mesh at each location where you would like to add a ' ...
