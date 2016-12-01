@@ -4,8 +4,9 @@ clear
 
 % We'll randomly generate a deformation with these parameters, just to
 % demonstrate what the algorithm is doing
-nhandles = 6;
+nhandles = 3;
 displacementAmount = 0.05;
+boundaryNormalLength = 0.0001;
 
 % Deformation bounds, seem to be reasonable from the paper (Fig. 4)
 k = .2; % seem to be reasonable from Figure 4 in the paper
@@ -14,68 +15,50 @@ sigma1 = 1.5;
 lambda = 100;
 
 % Load meshj
-filename = 'Meshes/llr2.off';
+filename = 'Meshes/elephant.off';
 [X,T] = readOff(filename);
-X = X / max(abs(X(:))); % rescale to unit box
 X = X(:,1)+1i*X(:,2); % convert vertices to complex numbers
 
-% Number of vertices/triangles
+%% choose boundary positions
+boundaryPositions = boundaryPicker(filename);
+nb = length(boundaryPositions);
+
+%% Number of vertices/triangles
 nv = size(X,1);
 nf = size(T,1);
 
-% Randomly choose handles and their displacements to demo the deformation
+%% Randomly choose handles and their displacements to demo the deformation
 handles = randperm(nv,nhandles);
 r = X(handles); % rest positions
 q = r; % fix all handles
 q(1) = q(1) + displacementAmount*(randn + 1i*randn); % but perturb one randomly
 
-% Display input mesh with handles
+%% Display input mesh with handles
 trimesh(T,real(X),imag(X),'color','k');
 axis equal; axis off; hold on;
 for i=1:nhandles, plot([r(i) q(i)],'b-'); end % plot destination of each handle
 plot(X(handles),'r.','markersize',50,'linewidth',10);
 title('Desired deformation');
 
-%% Find boundary of the triangle mesh
-boundaryLoop = boundaryPicker(filename);
-                         
+
+
+
+
 %% Do Cauchy coordinates
 
-boundaryPositions = X(boundaryLoop); % nb x 1
+C = cauchyCoordinates(boundaryPositions, X);
+Cprime = derivativesOfCauchyCoord(boundaryPositions, X);
 
-% Compute vertex normals on boundary
-edgeTangent = circshift(boundaryPositions,-1)-boundaryPositions;
-edgeNormal = imag(edgeTangent)-1i*real(edgeTangent);
-vtxNormal = .5*(edgeNormal + circshift(edgeNormal,1));
-vtxNormal = vtxNormal ./ abs(vtxNormal);
+%% Find boundary of the triangle mesh
 
-% Dispalce boundary
-boundaryPositions = boundaryPositions + vtxNormal*.001*sum(abs(edgeTangent));
-
-% Use notation of the paper to define assorted useful variables
-% See figure 2 and appendix A
-B = repmat(boundaryPositions',nv,1) - repmat(X,1,nb); % nv x nb
-A = diff(boundaryPositions)'; 
-A(end+1) = boundaryPositions(1)-boundaryPositions(end); % 1 x nb
-A = circshift(A,1); % A is difference z_j - z_{j-1}!
-
-nextA = circshift(A,-1); % 1 x nb
-
-nextB = circshift(B,-1,2); % nv x nb
-prevB = circshift(B,1,2); % nv x nb
-
-C = ( bsxfun(@rdivide,nextB,nextA).*log(nextB./B) ...
-     -bsxfun(@rdivide,prevB,A).*log(B./prevB) )/(2*pi*1i);
-
-Cprime = ( bsxfun(@rdivide,log(B./nextB),nextA) ...
-          +bsxfun(@rdivide,log(B./prevB),A) )/(2*pi*1i);
+boundaryLoop = getBoundaryEdges(X,T);
 
 %% Compute map
 
-theta = zeros(nb,1);
-
 M = boundaryLoop; % not bothering with their active set method
 nm = length(M);
+
+theta = zeros(nm,1);
 
 clear Phi Psi 
 
@@ -119,3 +102,10 @@ plot(X(handles),'g.','markersize',50,'linewidth',10);
 plot(f(handles),'r.','markersize',50,'linewidth',10);
 plot(q,'b.','markersize',50,'linewidth',10);
 drawnow;
+
+
+
+
+
+
+
