@@ -1,8 +1,8 @@
-function pts = boundaryPicker(filename)
+function pts = boundaryPicker(filepath)
     if nargin < 1
         [V,F] = readOff('Meshes/elephant.off');
     else
-        [V,F] = readOff(filename);
+        [V,F] = readOff(filepath);
     end
 	trimesh(F, V(:,1), V(:,2), 'color', 'k')
     
