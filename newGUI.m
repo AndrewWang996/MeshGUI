@@ -5,19 +5,34 @@ tri = delaunay(x,y);
 handle = trimesh(tri,x,y);
 %}
 axis equal;
+
+%{
 fprintf( ...
     ['\nCLICK on mesh at each location where you would like to add a ' ...
     'point handle.\n' ...
     'Press ENTER when finished.\n\n']);
-
+%}
 
 global keyframes;
 keyframes = {};
 
-[V,F] = readOff('Meshes/red_dragon_75_fixed_re.off');
+meshdirectory = 'Meshes/';
+meshname = 'red_dragon';
+meshfiletype = '.off';
 
-% V = [reshape(x, [numel(x),1]), reshape(y, [numel(y),1])];
-% F = tri;
+meshfilepath = strcat(meshdirectory, meshname, '/', meshname, meshfiletype);
+display(meshfilepath);
+[V,F] = readOff(meshfilepath);
+
+cagefiletype = '.mat';
+cagefilepath = strcat(meshdirectory, meshname, '/', meshname, cagefiletype);
+if exist(cagefilepath, 'file') == 2
+    cagepts = load(cagefilepath);
+else
+    cagepts = boundaryPicker(meshfilepath);
+    save( cagefilepath, 'cagepts' );
+end
+
 simple_deform(V, F)
 
 
