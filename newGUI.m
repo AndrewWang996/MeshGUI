@@ -1,4 +1,5 @@
 
+addpath Helpers;
 axis equal;
 
 %{
@@ -11,22 +12,9 @@ fprintf( ...
 global keyframes;
 keyframes = {};
 
-meshdirectory = 'Meshes/';
 meshname = 'red_dragon';
-meshfiletype = '.off';
-
-meshfilepath = strcat(meshdirectory, meshname, '/', meshname, meshfiletype);
-display(meshfilepath);
-[V,F] = readOff(meshfilepath);
-
-cagefiletype = '.mat';
-cagefilepath = strcat(meshdirectory, meshname, '/', meshname, cagefiletype);
-if exist(cagefilepath, 'file') == 2
-    cagepts = getfield( load(cagefilepath), 'cagepts' );
-else
-    cagepts = boundaryPicker(meshfilepath);
-    save( cagefilepath, 'cagepts' );
-end
+[V,F] = getMesh(meshname);
+cagepts = getCage(meshname);
 
 
 simple_deform(V, F)
@@ -170,16 +158,6 @@ set(gcf,'WindowButtonUpFcn',@setDeformationControlEnd)
         deforming = true;
         deformStartDefined = false;
     end
-% plot the control points (use 3D plot and fake a depth offset by pushing
-% control points up in z-direction)
-
-%{
-C_plot = scatter3( ...
-    C(:,1),C(:,2),0.1+0*C(:,1), ...
-    'o','MarkerFaceColor',[0.9 0.8 0.1], 'MarkerEdgeColor','k',...
-    'LineWidth',2,'SizeData',10, ...
-    'ButtonDownFcn',@oncontrolsdown);
-%}
 hold off;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

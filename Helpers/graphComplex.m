@@ -4,7 +4,6 @@ if nargin < 2
    loop = true;
 end
 
-display(complexValues);
 n = length(complexValues);
 
 real_z = real(complexValues);

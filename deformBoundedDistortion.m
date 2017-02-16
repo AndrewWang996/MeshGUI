@@ -1,5 +1,4 @@
-
-function blah = testBoundedDistortion(handleIndices, newHandles, X, T, cage)
+function newVertices = deformBoundedDistortion(handleIndices, newHandles, X, T, cage)
     nhandles = numel(handleIndices);
 
     % Deformation bounds, seem to be reasonable from the paper (Fig. 4)
@@ -23,11 +22,13 @@ function blah = testBoundedDistortion(handleIndices, newHandles, X, T, cage)
     q = newHandles;
 
     %% Display input mesh with handles
+    %{
     trimesh(T,real(X),imag(X),'color','k');
     axis equal; axis off; hold on;
     for i=1:nhandles, plot([r(i) q(i)],'b-'); end % plot destination of each handle
     plot(X(handleIndices),'r.','markersize',50,'linewidth',10);
     title('Desired deformation');
+    %}
 
 
 
@@ -82,7 +83,10 @@ function blah = testBoundedDistortion(handleIndices, newHandles, X, T, cage)
         theta = -angle(fz(boundaryLoop)); % Update angles for next iteration
     end
 
+    newVertices = f;
+    
     % Display deformed mesh
+    
     figure
     trimesh(T,real(f),imag(f),'color','k');
     axis equal; axis off; hold on;
@@ -93,7 +97,6 @@ function blah = testBoundedDistortion(handleIndices, newHandles, X, T, cage)
     drawnow;
 
 end
-
 
 
 
