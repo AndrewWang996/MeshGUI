@@ -1,9 +1,4 @@
 
-%{
-[x,y] = meshgrid(1:10, 1:10);
-tri = delaunay(x,y);
-handle = trimesh(tri,x,y);
-%}
 axis equal;
 
 %{
@@ -27,11 +22,12 @@ display(meshfilepath);
 cagefiletype = '.mat';
 cagefilepath = strcat(meshdirectory, meshname, '/', meshname, cagefiletype);
 if exist(cagefilepath, 'file') == 2
-    cagepts = load(cagefilepath);
+    cagepts = getfield( load(cagefilepath), 'cagepts' );
 else
     cagepts = boundaryPicker(meshfilepath);
     save( cagefilepath, 'cagepts' );
 end
+
 
 simple_deform(V, F)
 
@@ -111,14 +107,79 @@ showAnimation = uicontrol(gcf,'Style','pushbutton',...
     'Position',[200 0 90 20],...
     'Callback',@ShowAnimation);
 
+startDeformation = uicontrol(gcf,'Style','pushbutton',...
+    'String','Deform',...
+    'Position',[300 0 90 20],...
+    'Callback',@StartDeformation);
+
+set(gcf,'WindowButtonDownFcn',@setDeformationControlPoint)
+set(gcf,'WindowButtonUpFcn',@setDeformationControlEnd)
+
+    function setDeformationControlPoint(src, event)
+        global deforming
+        global deformStartDefined
+        if exist('deforming', 'var') ~= 1
+            return
+        elseif deforming ~= 1
+            return
+        end
+        display('set deformation control point')
+        clickpoint = get(gca,'currentpoint');
+        
+        x = clickpoint(1,1,1);
+        y = clickpoint(1,2,1);
+        
+        hold on;
+        plot(x,y,'*');
+        hold off;
+        
+        deforming = true;
+        deformStartDefined = true;
+        
+    end
+
+    function setDeformationControlEnd(src, event)
+        global deforming
+        global deformStartDefined
+        if exist('deforming', 'var') ~= 1 || ~ deforming
+            return
+        end
+        
+        display('set deformation control end')
+        
+        clickpoint = get(gca,'currentpoint');
+        x = clickpoint(1,1,1);
+        y = clickpoint(1,2,1);
+        
+        hold on;
+        plot(x,y,'*');
+        hold off;
+        
+        
+        
+        deforming = false;
+        deformStartDefined = false;
+        
+    end
+
+    function StartDeformation(src,event)
+        global deforming
+        global deformStartDefined
+        display('start deformation')
+        
+        deforming = true;
+        deformStartDefined = false;
+    end
 % plot the control points (use 3D plot and fake a depth offset by pushing
 % control points up in z-direction)
 
+%{
 C_plot = scatter3( ...
     C(:,1),C(:,2),0.1+0*C(:,1), ...
     'o','MarkerFaceColor',[0.9 0.8 0.1], 'MarkerEdgeColor','k',...
     'LineWidth',2,'SizeData',10, ...
     'ButtonDownFcn',@oncontrolsdown);
+%}
 hold off;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
