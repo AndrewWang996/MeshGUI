@@ -1,5 +1,6 @@
 
 addpath Helpers;
+addpath guiHelpers;
 axis equal;
 
 %{
@@ -103,61 +104,6 @@ startDeformation = uicontrol(gcf,'Style','pushbutton',...
 set(gcf,'WindowButtonDownFcn',@setDeformationControlPoint)
 set(gcf,'WindowButtonUpFcn',@setDeformationControlEnd)
 
-    function setDeformationControlPoint(src, event)
-        global deforming
-        global deformStartDefined
-        if exist('deforming', 'var') ~= 1
-            return
-        elseif deforming ~= 1
-            return
-        end
-        display('set deformation control point')
-        clickpoint = get(gca,'currentpoint');
-        
-        x = clickpoint(1,1,1);
-        y = clickpoint(1,2,1);
-        
-        hold on;
-        plot(x,y,'*');
-        hold off;
-        
-        deforming = true;
-        deformStartDefined = true;
-        
-    end
-
-    function setDeformationControlEnd(src, event)
-        global deforming
-        global deformStartDefined
-        if exist('deforming', 'var') ~= 1 || ~ deforming
-            return
-        end
-        
-        display('set deformation control end')
-        
-        clickpoint = get(gca,'currentpoint');
-        x = clickpoint(1,1,1);
-        y = clickpoint(1,2,1);
-        
-        hold on;
-        plot(x,y,'*');
-        hold off;
-        
-        
-        
-        deforming = false;
-        deformStartDefined = false;
-        
-    end
-
-    function StartDeformation(src,event)
-        global deforming
-        global deformStartDefined
-        display('start deformation')
-        
-        deforming = true;
-        deformStartDefined = false;
-    end
 hold off;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
