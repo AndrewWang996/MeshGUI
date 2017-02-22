@@ -1,8 +1,8 @@
 function StartDeformation(src,event)
-    global deforming
-    global deformStartDefined
-    display('start deformation')
+    meshname = getfield( get(gcf, 'UserData'), 'meshname' );
+    
+    indices = getAnchorIndices(meshname);
+    % anchors = 
+    display('select start and end for deformation')
 
-    deforming = true;
-    deformStartDefined = false;
 end
