@@ -103,81 +103,36 @@ startDeformation = uicontrol(gcf,'Style','pushbutton',...
     'String','Deform',...
     'Position',[300 0 90 20],...
     'Callback',@StartDeformation);
+
 function StartDeformation(src,event)
-    global deforming
-    global deformStartDefined
-    global deformStartIndex
+    display('click pairs of points, 1st on the shape, 2nd on the desired new location')
     
-    display('start deformation')
+    [vertices, faces] = getMesh(meshname);
+    cagePts = getCage(meshname);
     
-    deforming = true;
-    deformStartDefined = false;
-    deformStartIndex = -1;
-end
- 
-set(gcf,'WindowButtonDownFcn',@setDeformationControlPoint)
-set(gcf,'WindowButtonUpFcn',@setDeformationControlEnd)
-function setDeformationControlPoint(src, event)
-    global deforming
-    global deformStartDefined
-    global deformStartIndex
-    if exist('deforming', 'var') ~= 1
-        return
-    elseif deforming ~= 1
-        return
-    end
-    display('set deformation control point')
-    clickpoint = get(gca,'currentpoint');
-
-    x = clickpoint(1,1,1);
-    y = clickpoint(1,2,1);
-    vertices = get(g_Deform(gid).tsh,'Vertices');
-    vertices = vertices(:,1:2);
-    vert2 = V;
-    deformStartIndex = getIndex([x+1i*y], vertices);
+    figure
+    trimesh(faces, vertices(:,1), vertices(:,2));
+    [ptsX, ptsY] = getpts;
+    close(gcf)
     
-
-    hold on;
-    plot(x,y,'*');
-    hold off;
-
-    deforming = true;
-    deformStartDefined = true;
-
-end
-
-function setDeformationControlEnd(src, event)
-    global deforming
-    global deformStartDefined
-    global deformStartIndex
+    compexPts = ptsX + 1i * ptsY;
     
-    if exist('deforming', 'var') ~= 1 || ~ deforming
-        return
-    end
-
-    display('set deformation control end')
-
-    clickpoint = get(gca,'currentpoint');
-    x = clickpoint(1,1,1);
-    y = clickpoint(1,2,1);
+    ptsFrom = compexPts(1:2:length(compexPts), :);
+    ptsTo = compexPts(2:2:length(compexPts), :);
     
-    hold on;
-    plot(x,y,'*');
-    hold off;
-    
+    indices = getIndex(ptsFrom, vertices);
     anchorIndices = getAnchorIndices(meshname);
-    complexPoints = [V(anchorIndices, 1); x] + 1i * [V(anchorIndices, 2); y];
-    vertices = V;
-    faces = F;
-    cage = getCage(meshname);
-    newVertices = deformBoundedDistortion([anchorIndices; deformStartIndex], complexPoints, vertices, faces, cage);
-    newVertices = [real(newVertices), imag(newVertices)];
-    set(g_Deform(gid).tsh,'Vertices',newVertices);
-
-    deforming = false;
-    deformStartDefined = false;
-    deformStartIndex = -1;
-
+    anchorPositions = vertices(anchorIndices, 1) + 1i * vertices(anchorIndices, 2);
+    
+    newVerticesComplex = deformBoundedDistortion([indices; anchorIndices], [ptsTo; anchorPositions], vertices, faces, cagePts);
+    newVertices = [real(newVerticesComplex), imag(newVerticesComplex)];
+    
+    % newVertices = reorient(meshname, newVertices);
+    set(g_Deform(gid).tsh, 'Vertices', newVertices);
+    
+    
+    
+    
 end
 
 hold off;
@@ -352,8 +307,8 @@ return
             new_Vertices = allVertices * w;
             xdata = real(new_Vertices);
             ydata = imag(new_Vertices);
-            set(C_plot,'XData',xdata);
-            set(C_plot,'YData',ydata);
+            % set(C_plot,'XData',xdata);
+            % set(C_plot,'YData',ydata);
             set(g_Deform(gid).tsh, 'Vertices', [xdata,ydata]);
             pause(0.1);
         end

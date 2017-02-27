@@ -30,10 +30,6 @@ function newVertices = deformBoundedDistortion(handleIndices, newHandles, X, T, 
     title('Desired deformation');
     %}
 
-
-
-
-
     %% Do Cauchy coordinates
 
     C = cauchyCoordinates(boundaryPositions, X);
