@@ -131,7 +131,10 @@ function setDeformationControlPoint(src, event)
 
     x = clickpoint(1,1,1);
     y = clickpoint(1,2,1);
-    deformStartIndex = getIndex([x+1i*y], V);
+    vertices = get(g_Deform(gid).tsh,'Vertices');
+    vertices = vertices(:,1:2);
+    vert2 = V;
+    deformStartIndex = getIndex([x+1i*y], vertices);
     
 
     hold on;
