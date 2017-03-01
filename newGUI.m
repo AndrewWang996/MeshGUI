@@ -280,6 +280,7 @@ return
         copyOfCurrent.fz = g_Deform(gid).fz;
         copyOfCurrent.fzbar = g_Deform(gid).fzbar;
         
+        saveKeyframe(meshname, copyOfCurrent);
         keyframes = [keyframes, copyOfCurrent];
         fprintf('Saved 1 new keyframe. %d total keyframes.\n', numel(keyframes));
     end
