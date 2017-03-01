@@ -16,7 +16,7 @@ function indices = anchorPicker(filepath)
         break;
     end
     
-    indices = knnsearch(V, [ptsX, ptsY, zeros(size(ptsY, 1), 1)]);
+    indices = knnsearch(V, [ptsX, ptsY]);
 
     % plot(ptsX, ptsY);
     hold on;

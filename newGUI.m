@@ -1,5 +1,6 @@
 
 addpath Helpers;
+addpath Meshes;
 % addpath guiHelpers;
 axis equal;
 
@@ -83,6 +84,12 @@ axis manual
 % plot bones
 hold on;
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% cache fz, fzbar for the identity function f(z) = z
+g_Deform(gid).fz = ones( length(V), 1 );
+g_Deform(gid).fzbar = zeros( length(V), 1 );
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 saveKeyframeButton = uicontrol(gcf,'Style','pushbutton',...
     'String','Save Keyframe',...
     'Position',[50 0 90 20],...
@@ -124,11 +131,13 @@ function StartDeformation(src,event)
     anchorIndices = getAnchorIndices(meshname);
     anchorPositions = vertices(anchorIndices, 1) + 1i * vertices(anchorIndices, 2);
     
-    newVerticesComplex = deformBoundedDistortion([indices; anchorIndices], [ptsTo; anchorPositions], vertices, faces, cagePts);
+    [newVerticesComplex, fz, fzbar] = deformBoundedDistortion([indices; anchorIndices], [ptsTo; anchorPositions], vertices, faces, cagePts);
     newVertices = [real(newVerticesComplex), imag(newVerticesComplex)];
     
     % newVertices = reorient(meshname, newVertices);
     set(g_Deform(gid).tsh, 'Vertices', newVertices);
+    g_Deform(gid).fz = fz;
+    g_Deform(gid).fzbar = fzbar;
     
     
     
@@ -268,6 +277,8 @@ return
         copyOfCurrent = {};
         copyOfCurrent.Vertices = g_Deform(gid).tsh.Vertices;
         copyOfCurrent.Faces = g_Deform(gid).tsh.Faces;
+        copyOfCurrent.fz = g_Deform(gid).fz;
+        copyOfCurrent.fzbar = g_Deform(gid).fzbar;
         
         keyframes = [keyframes, copyOfCurrent];
         fprintf('Saved 1 new keyframe. %d total keyframes.\n', numel(keyframes));
@@ -287,7 +298,99 @@ return
         set(C_plot,'YData',keyframes{whichKeyframe}.Vertices(:,2));
     end
     
+
     function ShowAnimation(src,event)
+        global keyframes;
+        numKeyframes = numel(keyframes);
+        allVertices = zeros(size(C,1), numKeyframes);
+        allFz = zeros(size(C,1), numKeyframes);
+        allFzbar = zeros(size(C,1), numKeyframes);
+        [vertices, faces] = getMesh(meshname);
+        
+        for whichKeyframe = 1:numKeyframes
+            allVertices(:,whichKeyframe) = complex(...
+                keyframes{whichKeyframe}.Vertices(:,1),...
+                keyframes{whichKeyframe}.Vertices(:,2)...
+            );
+        
+            allFz(:,whichKeyframe) = keyframes{whichKeyframe}.fz;
+            allFzbar(:,whichKeyframe) = keyframes{whichKeyframe}.fzbar;
+        end
+        
+        function interpF = interpolate(wt)
+            % 0) set up spanning tree of mesh
+            [endNodes, weights, predecessor] = getSpanningTree(meshname);
+            anchorIndices = getAnchorIndices(meshname);
+            anchorIndex = anchorIndices(1); % only use the first anchor
+            
+            
+            
+            % 1) do some magic log stuff
+            g = complex( log(abs(allFz)), angle(allFz(end)) + cumsum(angle(allFz./circshift(allFz, 1))) );
+            
+            % 2) interpolate fz, eta, fzbar
+            % TODO: define fWtFun(wt) as linear matrix
+            % This is already given in BDH code...
+            interpFz = exp( g * linearWeight(numKeyframes, wt) );         
+            interpEta = ( allFz .* allFzbar ) * linearWeight(numKeyframes, wt);
+            interpFzBar = interpEta ./ interpFz;
+
+            % 3) integrate fz -> Phi, fzbar -> Psi by collecting edge
+            % differences.
+            edgeVectors = complex(...
+                vertices(endNodes(:,1),1) - vertices(endNodes(:,2),1),...
+                vertices(endNodes(:,1),2) - vertices(endNodes(:,2),2)...
+            );
+            edgeDifferencesFz = edgeVectors .* (0.5 * (interpFz(endNodes(:,1)) + interpFz(endNodes(:,2))));
+            sparseDifferencesFz = sparse([endNodes(:,1); endNodes(:,2)], ...
+                                        [endNodes(:,2); endNodes(:,1)], ...
+                                        [-1 * edgeDifferencesFz; edgeDifferencesFz]);
+            edgeDifferencesFzBar = edgeVectors .* (0.5 * (interpFzBar(endNodes(:,1)) + interpFzBar(endNodes(:,2))));
+            sparseDifferencesFzBar = sparse([endNodes(:,1); endNodes(:,2)], ...
+                                        [endNodes(:,2); endNodes(:,1)], ...
+                                        [-1 * edgeDifferencesFzBar; edgeDifferencesFzBar]);
+            
+            % Set Phi, Psi anchor values as defined in BDHI                        
+            Phi = zeros( size(C,1), 1 );
+            Psi = zeros( size(Phi) );
+            
+            Phi(anchorIndex) = (1-wt) * complex(...
+                keyframes{1}.Vertices(anchorIndex,1), ...
+                keyframes{1}.Vertices(anchorIndex,2) ...
+                ) ...
+                + (wt) * complex(...
+                keyframes{2}.Vertices(anchorIndex,1), ...
+                keyframes{2}.Vertices(anchorIndex,2) ...
+                );
+            
+            Psi(1) = 0;
+            
+            % Traverse the graph, accumulating edge values in Phi, Psi
+            dfsEdges = dfsearch( graph(endNodes(:,1), endNodes(:,2)), anchorIndex , 'edgetonew' );
+            for i = 1:length(dfsEdges)
+                currIndex = dfsEdges(i,2);
+                prevIndex = dfsEdges(i,1);
+                Phi(currIndex) = sparseDifferencesFz(prevIndex, currIndex) + Phi(prevIndex);
+                Psi(currIndex) = sparseDifferencesFzBar(prevIndex, currIndex) + Psi(currIndex);
+            end
+            
+            % 4) sum them together
+            interpF = Phi + Psi;
+        end
+        
+        % 5) display for various times t
+        n = 100;
+        for t = 0:1.0/n:1
+            newF = interpolate(t);
+            display(t);
+            set(g_Deform(gid).tsh, 'Vertices', [real(newF), imag(newF)]);
+        end
+        
+    end
+
+
+
+    function ShowAnimationLinear(src,event)
         global keyframes;
         numKeyframes = numel(keyframes);
         allVertices = zeros(size(C,1), numKeyframes);
@@ -310,7 +413,6 @@ return
             % set(C_plot,'XData',xdata);
             % set(C_plot,'YData',ydata);
             set(g_Deform(gid).tsh, 'Vertices', [xdata,ydata]);
-            pause(0.1);
         end
         
     end

@@ -1,4 +1,4 @@
-function newVertices = deformBoundedDistortion(handleIndices, newHandles, X, T, cage)
+function [newVertices, fz, fzbar] = deformBoundedDistortion(handleIndices, newHandles, X, T, cage)
     nhandles = numel(handleIndices);
 
     % Deformation bounds, seem to be reasonable from the paper (Fig. 4)
