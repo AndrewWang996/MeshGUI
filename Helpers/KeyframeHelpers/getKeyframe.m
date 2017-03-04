@@ -1,5 +1,5 @@
 function keyframe = getKeyframe(meshname, whichKeyframe)
-    keyframeFile = strcat('Meshes/', meshname, '/keyframes/keyframe_', int2str(whichKeyframe));
+    keyframeFile = strcat('Meshes/', meshname, '/keyframes/keyframe_', int2str(whichKeyframe), '.mat');
     if exist(keyframeFile, 'file') > 0
         savedStruct = load(keyframeFile);
         keyframe = savedStruct.keyframe;
