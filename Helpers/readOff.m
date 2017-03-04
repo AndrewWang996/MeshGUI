@@ -10,6 +10,7 @@ str = fgets(fid);   % -1 if eof
 
 if strcmp(str(1:4), 'COFF')
     [X,T,~] = readCoff(filename,4); % assume 4 color channels
+    X = X(:,1:2);
     return;
 end
 
@@ -32,6 +33,7 @@ if cnt~=3*nv
     warning('Problem in reading vertices.');
 end
 X = X';
+X = X(:,1:2);
 
 [T,cnt] = fscanf(fid,'3 %ld %ld %ld\n', [3,inf]);
 T = T'+1;
