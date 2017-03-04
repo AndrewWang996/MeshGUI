@@ -1,5 +1,6 @@
 
 addpath Helpers;
+addpath Helpers/KeyframeHelpers;
 addpath Meshes;
 % addpath guiHelpers;
 axis equal;
@@ -11,10 +12,8 @@ fprintf( ...
     'Press ENTER when finished.\n\n']);
 %}
 
-global keyframes;
-keyframes = {};
 
-meshname = 'red_dragon';
+meshname = 'horse';
 [V,F] = getMesh(meshname);
 cagepts = getCage(meshname);
 
@@ -27,68 +26,65 @@ simple_deform(V, F, meshname)
 
 function simple_deform(varargin)
 
-V = varargin{1};
-% face indices of mesh
-F = varargin{2};
+    V = varargin{1};
+    % face indices of mesh
+    F = varargin{2};
 
-meshname = varargin{3};
-% control vertices of skeleton
-C = V;
-% what indices of V do C correspond to
-I = 1:length(V);
+    meshname = varargin{3};
+    % control vertices of skeleton
+    C = V;
+    % what indices of V do C correspond to
+    I = 1:length(V);
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Set default parameters
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    % Set default parameters
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% set default point handles
-P = 1:size(C,1);
-% Be sure that control vertices are in 2D
-if(size(C,2) == 3)
-    C = C(:,1:2);
-end
+    % set default point handles
+    P = 1:size(C,1);
+    % Be sure that control vertices are in 2D
+    if(size(C,2) == 3)
+        C = C(:,1:2);
+    end
 
 
-% number of point handles
-np = numel(P);
+    % number of point handles
+    np = numel(P);
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Prepare output
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-global g_Deform;
-gid = numel(g_Deform)+1;
-% store indices I
-g_Deform(gid).indices = I;
-% keep track of control positions at mouse down
-g_Deform(gid).new_C = [];
-% keep track of rotations stored at each control point, for 2D this is a m
-% by 1 list of angles
-g_Deform(gid).R = zeros(np,1);
-g_Deform(gid).update_positions = @update_positions;
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    % Prepare output
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    global g_Deform;
+    gid = numel(g_Deform)+1;
+    % store indices I
+    g_Deform(gid).indices = I;
+    % keep track of control positions at mouse down
+    g_Deform(gid).new_C = [];
+    g_Deform(gid).update_positions = @update_positions;
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Set up plots
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    % Set up plots
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% Set up figure with enough subplots for any additional visualizations
-% clear current figure
-clf
+    % Set up figure with enough subplots for any additional visualizations
+    % clear current figure
+    clf
 
-% plot the original mesh
-g_Deform(gid).tsh = trisurf(F,V(:,1),V(:,2),zeros(size(V,1),1), ...
-    'FaceColor','interp');
-% 2D view
-view(2);
-axis equal
-axis manual
-% plot bones
-hold on;
+    % plot the original mesh
+    g_Deform(gid).tsh = trisurf(F,V(:,1),V(:,2),zeros(size(V,1),1), ...
+        'FaceColor','interp');
+    % 2D view
+    view(2);
+    axis equal
+    axis manual
+    % plot bones
+    hold on;
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% cache fz, fzbar for the identity function f(z) = z
-g_Deform(gid).fz = ones( length(V), 1 );
-g_Deform(gid).fzbar = zeros( length(V), 1 );
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    % cache fz, fzbar for the identity function f(z) = z
+    g_Deform(gid).fz = ones( length(V), 1 );
+    g_Deform(gid).fzbar = zeros( length(V), 1 );
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 saveKeyframeButton = uicontrol(gcf,'Style','pushbutton',...
     'String','Save Keyframe',...
@@ -111,70 +107,70 @@ startDeformation = uicontrol(gcf,'Style','pushbutton',...
     'Position',[300 0 90 20],...
     'Callback',@StartDeformation);
 
-function StartDeformation(src,event)
-    display('click pairs of points, 1st on the shape, 2nd on the desired new location')
-    
-    [vertices, faces] = getMesh(meshname);
-    cagePts = getCage(meshname);
-    
-    figure
-    trimesh(faces, vertices(:,1), vertices(:,2));
-    [ptsX, ptsY] = getpts;
-    close(gcf)
-    
-    compexPts = ptsX + 1i * ptsY;
-    
-    ptsFrom = compexPts(1:2:length(compexPts), :);
-    ptsTo = compexPts(2:2:length(compexPts), :);
-    
-    indices = getIndex(ptsFrom, vertices);
-    anchorIndices = getAnchorIndices(meshname);
-    anchorPositions = vertices(anchorIndices, 1) + 1i * vertices(anchorIndices, 2);
-    
-    [newVerticesComplex, fz, fzbar] = deformBoundedDistortion([indices; anchorIndices], [ptsTo; anchorPositions], vertices, faces, cagePts);
-    newVertices = [real(newVerticesComplex), imag(newVerticesComplex)];
-    
-    % newVertices = reorient(meshname, newVertices);
-    set(g_Deform(gid).tsh, 'Vertices', newVertices);
-    g_Deform(gid).fz = fz;
-    g_Deform(gid).fzbar = fzbar;
-    
-    
-    
-    
-end
+    function StartDeformation(src,event)
+        display('click pairs of points, 1st on the shape, 2nd on the desired new location')
 
-hold off;
+        [vertices, faces] = getMesh(meshname);
+        cagePts = getCage(meshname);
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Set up interaction variables
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% keep track of window xmin, xmax, ymin, ymax
-win_min = min([C(:,1:2); V(:,1:2)]);
-win_max = max([C(:,1:2); V(:,1:2)]);
-% keep track of down position
-down_pos = [];
-% keep track of last two drag positions
-drag_pos = [];
-last_drag_pos = [];
-% keep track of mesh vertices at mouse down
-down_V = [];
-% keep track of index of selected control point
-ci = [];
-% type of click ('left','right')
-down_type  = '';
+        figure
+        trimesh(faces, vertices(:,1), vertices(:,2));
+        [ptsX, ptsY] = getpts;
+        close(gcf)
 
-fprintf( ...
-    ['DRAG a control point to deform the mesh.\n' ...
-    'RIGHT CLICK DRAG a control point to rotate point handles.\n\n']);
+        compexPts = ptsX + 1i * ptsY;
 
-return
+        ptsFrom = compexPts(1:2:length(compexPts), :);
+        ptsTo = compexPts(2:2:length(compexPts), :);
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Callback functions for keyboard and mouse
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        indices = getIndex(ptsFrom, vertices);
+        anchorIndices = getAnchorIndices(meshname);
+        anchorPositions = vertices(anchorIndices, 1) + 1i * vertices(anchorIndices, 2);
 
-% Callback for mouse down on control points
+        [newVerticesComplex, fz, fzbar] = deformBoundedDistortion([indices; anchorIndices], [ptsTo; anchorPositions], vertices, faces, cagePts);
+        newVertices = [real(newVerticesComplex), imag(newVerticesComplex)];
+
+        % newVertices = reorient(meshname, newVertices);
+        set(g_Deform(gid).tsh, 'Vertices', newVertices);
+        g_Deform(gid).fz = fz;
+        g_Deform(gid).fzbar = fzbar;
+
+
+
+
+    end
+
+    hold off;
+
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    % Set up interaction variables
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    % keep track of window xmin, xmax, ymin, ymax
+    win_min = min([C(:,1:2); V(:,1:2)]);
+    win_max = max([C(:,1:2); V(:,1:2)]);
+    % keep track of down position
+    down_pos = [];
+    % keep track of last two drag positions
+    drag_pos = [];
+    last_drag_pos = [];
+    % keep track of mesh vertices at mouse down
+    down_V = [];
+    % keep track of index of selected control point
+    ci = [];
+    % type of click ('left','right')
+    down_type  = '';
+
+    fprintf( ...
+        ['DRAG a control point to deform the mesh.\n' ...
+        'RIGHT CLICK DRAG a control point to rotate point handles.\n\n']);
+
+    return
+
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    % Callback functions for keyboard and mouse
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+    % Callback for mouse down on control points
     function oncontrolsdown(src,event)
         % get current mouse position, and remember old one
         down_pos=get(gca,'currentpoint');
@@ -216,12 +212,6 @@ return
             % move selected control point by drag offset
             g_Deform(gid).new_C(ci,:) = ...
                 g_Deform(gid).new_C(ci,:) + drag_pos-last_drag_pos;
-        else
-            [found, iP] = ismember(ci,P);
-            if(found)
-                g_Deform(gid).R(iP) = ...
-                    g_Deform(gid).R(iP) + 2*pi*(drag_pos(1)-last_drag_pos(1))/100;
-            end
         end
         update_positions();
     end
@@ -263,7 +253,6 @@ return
             
             % Refresh the state of the mesh
             g_Deform(gid).new_C = C;
-            g_Deform(gid).R = zeros(np,1);
             update_positions();
             
         elseif(strcmp(event.Character,'u'))
@@ -273,48 +262,47 @@ return
 
 
     function SaveKeyframe(src, event)
-        global keyframes;
         copyOfCurrent = {};
         copyOfCurrent.Vertices = g_Deform(gid).tsh.Vertices;
         copyOfCurrent.Faces = g_Deform(gid).tsh.Faces;
         copyOfCurrent.fz = g_Deform(gid).fz;
         copyOfCurrent.fzbar = g_Deform(gid).fzbar;
         
-        keyframes = [keyframes, copyOfCurrent];
-        fprintf('Saved 1 new keyframe. %d total keyframes.\n', numel(keyframes));
+        saveKeyframe(meshname, copyOfCurrent);
+        fprintf('Saved 1 new keyframe. %d total keyframes.\n', countKeyframes(meshname));
     end
 
     function ShowKeyframe(src,event)
-        global keyframes;
-        numKeyframes = numel(keyframes);
+        numKeyframes = countKeyframes(meshname);
         if numKeyframes == 0
             return 
         end
         position = src.Value;
         whichKeyframe = round( (numKeyframes - 1) * position + 1);
-        % display(whichKeyframe);
-        set(g_Deform(gid).tsh,'Vertices',keyframes{whichKeyframe}.Vertices(:,1:2));
-        set(C_plot,'XData',keyframes{whichKeyframe}.Vertices(:,1));
-        set(C_plot,'YData',keyframes{whichKeyframe}.Vertices(:,2));
+        
+        keyframe = getKeyframe(meshname, whichKeyframe);
+        set(g_Deform(gid).tsh,'Vertices',keyframe.Vertices(:,1:2));
+%         set(C_plot,'XData',keyframe.Vertices(:,1));
+%         set(C_plot,'YData',keyframe.Vertices(:,2));
     end
     
 
     function ShowAnimation(src,event)
-        global keyframes;
-        numKeyframes = numel(keyframes);
+        numKeyframes = countKeyframes(meshname);
         allVertices = zeros(size(C,1), numKeyframes);
         allFz = zeros(size(C,1), numKeyframes);
         allFzbar = zeros(size(C,1), numKeyframes);
         [vertices, faces] = getMesh(meshname);
         
         for whichKeyframe = 1:numKeyframes
+            keyframe = getKeyframe(meshname, whichKeyframe);
             allVertices(:,whichKeyframe) = complex(...
-                keyframes{whichKeyframe}.Vertices(:,1),...
-                keyframes{whichKeyframe}.Vertices(:,2)...
+                keyframe.Vertices(:,1),...
+                keyframe.Vertices(:,2)...
             );
         
-            allFz(:,whichKeyframe) = keyframes{whichKeyframe}.fz;
-            allFzbar(:,whichKeyframe) = keyframes{whichKeyframe}.fzbar;
+            allFz(:,whichKeyframe) = keyframe.fz;
+            allFzbar(:,whichKeyframe) = keyframe.fzbar;
         end
         
         function interpF = interpolate(wt)
@@ -354,14 +342,16 @@ return
             Phi = zeros( size(C,1), 1 );
             Psi = zeros( size(Phi) );
             
-            Phi(anchorIndex) = (1-wt) * complex(...
-                keyframes{1}.Vertices(anchorIndex,1), ...
-                keyframes{1}.Vertices(anchorIndex,2) ...
-                ) ...
-                + (wt) * complex(...
-                keyframes{2}.Vertices(anchorIndex,1), ...
-                keyframes{2}.Vertices(anchorIndex,2) ...
-                );
+            mixedF = allVertices * linearWeight(numKeyframes, wt);
+            Phi(anchorIndex) = mixedF(anchorIndex);
+%             (1-wt) * complex(...
+%             keyframes{1}.Vertices(anchorIndex,1), ...
+%             keyframes{1}.Vertices(anchorIndex,2) ...
+%             ) ...
+%             + (wt) * complex(...
+%             keyframes{2}.Vertices(anchorIndex,1), ...
+%             keyframes{2}.Vertices(anchorIndex,2) ...
+%             );
             
             Psi(1) = 0;
             
@@ -384,6 +374,9 @@ return
             newF = interpolate(t);
             display(t);
             set(g_Deform(gid).tsh, 'Vertices', [real(newF), imag(newF)]);
+            pause(0); 
+                % not sure why this is needed, but changes are only
+                % displayed if we pause here.
         end
         
     end
@@ -391,18 +384,17 @@ return
 
 
     function ShowAnimationLinear(src,event)
-        global keyframes;
-        numKeyframes = numel(keyframes);
+        numKeyframes = countKeyframes(meshname);
         allVertices = zeros(size(C,1), numKeyframes);
        
         for whichKeyframe = 1:numKeyframes
+            keyframe = getKeyframe(meshname, whichKeyframe);
             allVertices(:,whichKeyframe) = complex(...
-                keyframes{whichKeyframe}.Vertices(:,1),...
-                keyframes{whichKeyframe}.Vertices(:,2)...
+                keyframe.Vertices(:,1),...
+                keyframe.Vertices(:,2)...
             );
         end
         
-        % display(allVertices);
         n = 10;
         
         for t = 0:1.0/n:1
