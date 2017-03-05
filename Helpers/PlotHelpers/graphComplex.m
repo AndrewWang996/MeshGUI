@@ -1,4 +1,4 @@
-function w = graphComplex(complexValues, loop)
+function graphComplex(complexValues, loop)
 
 if nargin < 2
    loop = true;

@@ -1,8 +1,9 @@
 
 addpath Helpers;
 addpath Helpers/KeyframeHelpers;
+addpath Helpers/PlotHelpers;
+addpath Helpers/GUIHelpers;
 addpath Meshes;
-% addpath guiHelpers;
 axis equal;
 
 %{
@@ -13,7 +14,7 @@ fprintf( ...
 %}
 
 
-meshname = 'horse';
+meshname = 'red_dragon';
 [V,F] = getMesh(meshname);
 cagepts = getCage(meshname);
 
@@ -40,16 +41,11 @@ function simple_deform(varargin)
     % Set default parameters
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-    % set default point handles
-    P = 1:size(C,1);
     % Be sure that control vertices are in 2D
-    if(size(C,2) == 3)
+    if(size(C,2) >= 3)
         C = C(:,1:2);
     end
 
-
-    % number of point handles
-    np = numel(P);
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % Prepare output
@@ -118,10 +114,10 @@ startDeformation = uicontrol(gcf,'Style','pushbutton',...
         [ptsX, ptsY] = getpts;
         close(gcf)
 
-        compexPts = ptsX + 1i * ptsY;
+        complexPts = ptsX + 1i * ptsY;
 
-        ptsFrom = compexPts(1:2:length(compexPts), :);
-        ptsTo = compexPts(2:2:length(compexPts), :);
+        ptsFrom = complexPts(1:2:length(complexPts), :);
+        ptsTo = complexPts(2:2:length(complexPts), :);
 
         indices = getIndex(ptsFrom, vertices);
         anchorIndices = getAnchorIndices(meshname);
@@ -130,14 +126,9 @@ startDeformation = uicontrol(gcf,'Style','pushbutton',...
         [newVerticesComplex, fz, fzbar] = deformBoundedDistortion([indices; anchorIndices], [ptsTo; anchorPositions], vertices, faces, cagePts);
         newVertices = [real(newVerticesComplex), imag(newVerticesComplex)];
 
-        % newVertices = reorient(meshname, newVertices);
         set(g_Deform(gid).tsh, 'Vertices', newVertices);
         g_Deform(gid).fz = fz;
         g_Deform(gid).fzbar = fzbar;
-
-
-
-
     end
 
     hold off;
@@ -288,6 +279,9 @@ startDeformation = uicontrol(gcf,'Style','pushbutton',...
     
 
     function ShowAnimation(src,event)
+        
+        showMovementVectors = true;
+        
         numKeyframes = countKeyframes(meshname);
         allVertices = zeros(size(C,1), numKeyframes);
         allFz = zeros(size(C,1), numKeyframes);
@@ -344,14 +338,6 @@ startDeformation = uicontrol(gcf,'Style','pushbutton',...
             
             mixedF = allVertices * linearWeight(numKeyframes, wt);
             Phi(anchorIndex) = mixedF(anchorIndex);
-%             (1-wt) * complex(...
-%             keyframes{1}.Vertices(anchorIndex,1), ...
-%             keyframes{1}.Vertices(anchorIndex,2) ...
-%             ) ...
-%             + (wt) * complex(...
-%             keyframes{2}.Vertices(anchorIndex,1), ...
-%             keyframes{2}.Vertices(anchorIndex,2) ...
-%             );
             
             Psi(1) = 0;
             
@@ -370,10 +356,23 @@ startDeformation = uicontrol(gcf,'Style','pushbutton',...
         
         % 5) display for various times t
         n = 100;
-        for t = 0:1.0/n:1
+        increment = 1.0 / n;
+        oldF = allVertices(:,1);
+        for t = 0 : increment : 1
+            if t > 0 && showMovementVectors
+                hold on;
+                if exist('movementVectorsHandle', 'var') > 0
+                    delete(movementVectorsHandle);
+                end
+                movementVectorsHandle = plotMovementVectors(oldF, newF, 3);
+                pause(0);
+                hold off;
+                oldF = newF;
+            end
             newF = interpolate(t);
             display(t);
             set(g_Deform(gid).tsh, 'Vertices', [real(newF), imag(newF)]);
+            
             pause(0); 
                 % not sure why this is needed, but changes are only
                 % displayed if we pause here.
