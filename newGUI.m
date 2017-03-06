@@ -3,7 +3,11 @@ addpath Helpers;
 addpath Helpers/KeyframeHelpers;
 addpath Helpers/PlotHelpers;
 addpath Helpers/GUIHelpers;
+
+addpath WeightFunctions;
+
 addpath Meshes;
+
 axis equal;
 
 %{
@@ -374,7 +378,7 @@ startDeformation = uicontrol(gcf,'Style','pushbutton',...
                 hold off;
                 oldF = newF;
             end
-            newF = interpolate(t, @linearWeight);
+            newF = interpolate(t, @quadraticSplineWeight);
             display(t);
             set(g_Deform(gid).tsh, 'Vertices', [real(newF), imag(newF)]);
             
