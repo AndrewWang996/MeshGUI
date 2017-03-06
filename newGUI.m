@@ -388,32 +388,4 @@ startDeformation = uicontrol(gcf,'Style','pushbutton',...
         
     end
 
-
-
-    function ShowAnimationLinear(src,event)
-        numKeyframes = countKeyframes(meshname);
-        allVertices = zeros(size(C,1), numKeyframes);
-       
-        for whichKeyframe = 1:numKeyframes
-            keyframe = getKeyframe(meshname, whichKeyframe);
-            allVertices(:,whichKeyframe) = complex(...
-                keyframe.Vertices(:,1),...
-                keyframe.Vertices(:,2)...
-            );
-        end
-        
-        n = 10;
-        
-        for t = 0:1.0/n:1
-            w = linearWeight(numKeyframes,t);
-            new_Vertices = allVertices * w;
-            xdata = real(new_Vertices);
-            ydata = imag(new_Vertices);
-            % set(C_plot,'XData',xdata);
-            % set(C_plot,'YData',ydata);
-            set(g_Deform(gid).tsh, 'Vertices', [xdata,ydata]);
-        end
-        
-    end
-
 end
