@@ -18,7 +18,7 @@ fprintf( ...
 %}
 
 
-meshname = 'red_dragon';
+meshname = 'simple';
 [V,F] = getMesh(meshname);
 cagepts = getCage(meshname);
 
