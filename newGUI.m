@@ -381,10 +381,7 @@ startDeformation = uicontrol(gcf,'Style','pushbutton',...
             newF = interpolate(t, @quadraticSplineWeight);
             display(t);
             set(g_Deform(gid).tsh, 'Vertices', [real(newF), imag(newF)]);
-            
-            pause(0); 
-                % not sure why this is needed, but changes are only
-                % displayed if we pause here.
+            drawnow
         end
         if exist('movementVectorsHandle', 'var') > 0
             delete(movementVectorsHandle);
