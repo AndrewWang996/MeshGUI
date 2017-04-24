@@ -1,8 +1,13 @@
 
 addpath Helpers;
 addpath Helpers/KeyframeHelpers;
+addpath Helpers/PlotHelpers;
+addpath Helpers/GUIHelpers;
+
+addpath WeightFunctions;
+
 addpath Meshes;
-% addpath guiHelpers;
+
 axis equal;
 
 %{
@@ -13,7 +18,7 @@ fprintf( ...
 %}
 
 
-meshname = 'horse';
+meshname = 'simple';
 [V,F] = getMesh(meshname);
 cagepts = getCage(meshname);
 
@@ -40,16 +45,11 @@ function simple_deform(varargin)
     % Set default parameters
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-    % set default point handles
-    P = 1:size(C,1);
     % Be sure that control vertices are in 2D
-    if(size(C,2) == 3)
+    if(size(C,2) >= 3)
         C = C(:,1:2);
     end
 
-
-    % number of point handles
-    np = numel(P);
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % Prepare output
@@ -118,10 +118,10 @@ startDeformation = uicontrol(gcf,'Style','pushbutton',...
         [ptsX, ptsY] = getpts;
         close(gcf)
 
-        compexPts = ptsX + 1i * ptsY;
+        complexPts = ptsX + 1i * ptsY;
 
-        ptsFrom = compexPts(1:2:length(compexPts), :);
-        ptsTo = compexPts(2:2:length(compexPts), :);
+        ptsFrom = complexPts(1:2:length(complexPts), :);
+        ptsTo = complexPts(2:2:length(complexPts), :);
 
         indices = getIndex(ptsFrom, vertices);
         anchorIndices = getAnchorIndices(meshname);
@@ -130,14 +130,9 @@ startDeformation = uicontrol(gcf,'Style','pushbutton',...
         [newVerticesComplex, fz, fzbar] = deformBoundedDistortion([indices; anchorIndices], [ptsTo; anchorPositions], vertices, faces, cagePts);
         newVertices = [real(newVerticesComplex), imag(newVerticesComplex)];
 
-        % newVertices = reorient(meshname, newVertices);
         set(g_Deform(gid).tsh, 'Vertices', newVertices);
         g_Deform(gid).fz = fz;
         g_Deform(gid).fzbar = fzbar;
-
-
-
-
     end
 
     hold off;
@@ -288,6 +283,10 @@ startDeformation = uicontrol(gcf,'Style','pushbutton',...
     
 
     function ShowAnimation(src,event)
+        
+        % for debugging purposes
+        showMovementVectors = false;
+        
         numKeyframes = countKeyframes(meshname);
         allVertices = zeros(size(C,1), numKeyframes);
         allFz = zeros(size(C,1), numKeyframes);
@@ -305,30 +304,35 @@ startDeformation = uicontrol(gcf,'Style','pushbutton',...
             allFzbar(:,whichKeyframe) = keyframe.fzbar;
         end
         
-        function interpF = interpolate(wt)
-            % 0) set up spanning tree of mesh
-            [endNodes, weights, predecessor] = getSpanningTree(meshname);
-            anchorIndices = getAnchorIndices(meshname);
-            anchorIndex = anchorIndices(1); % only use the first anchor
+        % 0) set up spanning tree of mesh
+        % + other precomputation        
+        [endNodes, weights, predecessor] = getSpanningTree(meshname);
+        anchorIndices = getAnchorIndices(meshname);
+        anchorIndex = anchorIndices(1); % only use the first anchor
+        edgeVectors = complex(...
+            vertices(endNodes(:,1),1) - vertices(endNodes(:,2),1),...
+            vertices(endNodes(:,1),2) - vertices(endNodes(:,2),2)...
+        );
+        dfsEdges = dfsearch( graph(endNodes(:,1), endNodes(:,2)), anchorIndex , 'edgetonew' );
+        
             
+        % 1) do some magic log stuff
+        g = complex( log(abs(allFz)), angle(allFz(end)) + cumsum(angle(allFz./circshift(allFz, 1))) );
             
-            
-            % 1) do some magic log stuff
-            g = complex( log(abs(allFz)), angle(allFz(end)) + cumsum(angle(allFz./circshift(allFz, 1))) );
+        
+        
+        function interpF = interpolate(wt, weightFunc)
+            weight = weightFunc(numKeyframes, wt);
             
             % 2) interpolate fz, eta, fzbar
             % TODO: define fWtFun(wt) as linear matrix
             % This is already given in BDH code...
-            interpFz = exp( g * linearWeight(numKeyframes, wt) );         
-            interpEta = ( allFz .* allFzbar ) * linearWeight(numKeyframes, wt);
+            interpFz = exp( g * weight );         
+            interpEta = ( allFz .* allFzbar ) * weight;
             interpFzBar = interpEta ./ interpFz;
 
             % 3) integrate fz -> Phi, fzbar -> Psi by collecting edge
             % differences.
-            edgeVectors = complex(...
-                vertices(endNodes(:,1),1) - vertices(endNodes(:,2),1),...
-                vertices(endNodes(:,1),2) - vertices(endNodes(:,2),2)...
-            );
             edgeDifferencesFz = edgeVectors .* (0.5 * (interpFz(endNodes(:,1)) + interpFz(endNodes(:,2))));
             sparseDifferencesFz = sparse([endNodes(:,1); endNodes(:,2)], ...
                                         [endNodes(:,2); endNodes(:,1)], ...
@@ -342,21 +346,12 @@ startDeformation = uicontrol(gcf,'Style','pushbutton',...
             Phi = zeros( size(C,1), 1 );
             Psi = zeros( size(Phi) );
             
-            mixedF = allVertices * linearWeight(numKeyframes, wt);
+            mixedF = allVertices * weight;
             Phi(anchorIndex) = mixedF(anchorIndex);
-%             (1-wt) * complex(...
-%             keyframes{1}.Vertices(anchorIndex,1), ...
-%             keyframes{1}.Vertices(anchorIndex,2) ...
-%             ) ...
-%             + (wt) * complex(...
-%             keyframes{2}.Vertices(anchorIndex,1), ...
-%             keyframes{2}.Vertices(anchorIndex,2) ...
-%             );
             
             Psi(1) = 0;
             
             % Traverse the graph, accumulating edge values in Phi, Psi
-            dfsEdges = dfsearch( graph(endNodes(:,1), endNodes(:,2)), anchorIndex , 'edgetonew' );
             for i = 1:length(dfsEdges)
                 currIndex = dfsEdges(i,2);
                 prevIndex = dfsEdges(i,1);
@@ -370,41 +365,26 @@ startDeformation = uicontrol(gcf,'Style','pushbutton',...
         
         % 5) display for various times t
         n = 100;
-        for t = 0:1.0/n:1
-            newF = interpolate(t);
+        increment = 1.0 / n;
+        oldF = allVertices(:,1);
+        for t = 0 : increment : 1
+            if exist('movementVectorsHandle', 'var') > 0
+                delete(movementVectorsHandle);
+            end
+            if t > 0 && showMovementVectors
+                hold on;
+                movementVectorsHandle = plotMovementVectors(oldF, newF, 3);
+                pause(0);
+                hold off;
+                oldF = newF;
+            end
+            newF = interpolate(t, @quadraticSplineWeight);
             display(t);
             set(g_Deform(gid).tsh, 'Vertices', [real(newF), imag(newF)]);
-            pause(0); 
-                % not sure why this is needed, but changes are only
-                % displayed if we pause here.
+            drawnow
         end
-        
-    end
-
-
-
-    function ShowAnimationLinear(src,event)
-        numKeyframes = countKeyframes(meshname);
-        allVertices = zeros(size(C,1), numKeyframes);
-       
-        for whichKeyframe = 1:numKeyframes
-            keyframe = getKeyframe(meshname, whichKeyframe);
-            allVertices(:,whichKeyframe) = complex(...
-                keyframe.Vertices(:,1),...
-                keyframe.Vertices(:,2)...
-            );
-        end
-        
-        n = 10;
-        
-        for t = 0:1.0/n:1
-            w = linearWeight(numKeyframes,t);
-            new_Vertices = allVertices * w;
-            xdata = real(new_Vertices);
-            ydata = imag(new_Vertices);
-            % set(C_plot,'XData',xdata);
-            % set(C_plot,'YData',ydata);
-            set(g_Deform(gid).tsh, 'Vertices', [xdata,ydata]);
+        if exist('movementVectorsHandle', 'var') > 0
+            delete(movementVectorsHandle);
         end
         
     end
