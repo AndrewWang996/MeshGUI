@@ -18,7 +18,7 @@ fprintf( ...
 %}
 
 
-meshname = 'simple';
+meshname = 'vert_bar';
 [V,F] = getMesh(meshname);
 cagepts = getCage(meshname);
 
@@ -84,6 +84,8 @@ function simple_deform(varargin)
     % cache fz, fzbar for the identity function f(z) = z
     g_Deform(gid).fz = ones( length(V), 1 );
     g_Deform(gid).fzbar = zeros( length(V), 1 );
+    g_Deform(gid).phi = complex(V(:,1), V(:,2));
+    g_Deform(gid).psi = zeros( length(V), 1 );
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 saveKeyframeButton = uicontrol(gcf,'Style','pushbutton',...
@@ -127,12 +129,14 @@ startDeformation = uicontrol(gcf,'Style','pushbutton',...
         anchorIndices = getAnchorIndices(meshname);
         anchorPositions = vertices(anchorIndices, 1) + 1i * vertices(anchorIndices, 2);
 
-        [newVerticesComplex, fz, fzbar] = deformBoundedDistortion([indices; anchorIndices], [ptsTo; anchorPositions], vertices, faces, cagePts);
+        [newVerticesComplex, fz, fzbar, phi, psi] = deformBoundedDistortion([indices; anchorIndices], [ptsTo; anchorPositions], vertices, faces, cagePts);
         newVertices = [real(newVerticesComplex), imag(newVerticesComplex)];
 
         set(g_Deform(gid).tsh, 'Vertices', newVertices);
         g_Deform(gid).fz = fz;
         g_Deform(gid).fzbar = fzbar;
+        g_Deform(gid).phi = phi;
+        g_Deform(gid).psi = psi;
     end
 
     hold off;
@@ -262,6 +266,8 @@ startDeformation = uicontrol(gcf,'Style','pushbutton',...
         copyOfCurrent.Faces = g_Deform(gid).tsh.Faces;
         copyOfCurrent.fz = g_Deform(gid).fz;
         copyOfCurrent.fzbar = g_Deform(gid).fzbar;
+        copyOfCurrent.phi = g_Deform(gid).phi;
+        copyOfCurrent.psi = g_Deform(gid).psi;
         
         saveKeyframe(meshname, copyOfCurrent);
         fprintf('Saved 1 new keyframe. %d total keyframes.\n', countKeyframes(meshname));
