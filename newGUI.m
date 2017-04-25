@@ -3,6 +3,7 @@ addpath Helpers;
 addpath Helpers/KeyframeHelpers;
 addpath Helpers/PlotHelpers;
 addpath Helpers/GUIHelpers;
+addpath Helpers/OptimizationHelpers;
 
 addpath WeightFunctions;
 
@@ -10,12 +11,6 @@ addpath Meshes;
 
 axis equal;
 
-%{
-fprintf( ...
-    ['\nCLICK on mesh at each location where you would like to add a ' ...
-    'point handle.\n' ...
-    'Press ENTER when finished.\n\n']);
-%}
 
 
 meshname = 'vert_bar';
@@ -23,6 +18,7 @@ meshname = 'vert_bar';
 cagepts = getCage(meshname);
 
 set(gcf, 'UserData', struct('meshname', meshname));
+set(gcf, 'Position', [0 200 800 500]);
 
 simple_deform(V, F, meshname)
 
@@ -77,7 +73,6 @@ function simple_deform(varargin)
     view(2);
     axis equal
     axis manual
-    % plot bones
     hold on;
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -95,7 +90,7 @@ saveKeyframeButton = uicontrol(gcf,'Style','pushbutton',...
 
 showKeyframeButton = uicontrol(gcf,'Style','slider',...
     'String','Save Keyframe',...
-    'Position',[400 0 120 20]);
+    'Position',[500 0 120 20]);
 addlistener(showKeyframeButton, ...
     'ContinuousValueChange', @ShowKeyframe);
 
@@ -109,18 +104,23 @@ startDeformation = uicontrol(gcf,'Style','pushbutton',...
     'Position',[300 0 90 20],...
     'Callback',@StartDeformation);
 
+setVelocity = uicontrol(gcf,'Style','pushbutton',...
+    'String','Set Velocity',...
+    'Position',[400 0 90 20],...
+    'Callback',@SetVelocity);
+
     function StartDeformation(src,event)
-        display('click pairs of points, 1st on the shape, 2nd on the desired new location')
+        disp('click pairs of points, 1st on the shape, 2nd on the desired new location')
 
         [vertices, faces] = getMesh(meshname);
         cagePts = getCage(meshname);
 
         figure
-        trimesh(faces, vertices(:,1), vertices(:,2));
+        trimesh(faces, vertices(:,1), vertices(:,2), 'color', 'k');
         [ptsX, ptsY] = getpts;
         close(gcf)
 
-        complexPts = ptsX + 1i * ptsY;
+        complexPts = complex(ptsX, ptsY);
 
         ptsFrom = complexPts(1:2:length(complexPts), :);
         ptsTo = complexPts(2:2:length(complexPts), :);
@@ -140,125 +140,56 @@ startDeformation = uicontrol(gcf,'Style','pushbutton',...
     end
 
     hold off;
-
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    % Set up interaction variables
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    % keep track of window xmin, xmax, ymin, ymax
-    win_min = min([C(:,1:2); V(:,1:2)]);
-    win_max = max([C(:,1:2); V(:,1:2)]);
-    % keep track of down position
-    down_pos = [];
-    % keep track of last two drag positions
-    drag_pos = [];
-    last_drag_pos = [];
-    % keep track of mesh vertices at mouse down
-    down_V = [];
-    % keep track of index of selected control point
-    ci = [];
-    % type of click ('left','right')
-    down_type  = '';
-
-    fprintf( ...
-        ['DRAG a control point to deform the mesh.\n' ...
-        'RIGHT CLICK DRAG a control point to rotate point handles.\n\n']);
-
+    
     return
+    
+    
+    function SetVelocity(src,event)
+        disp( strcat('Select pairs of points. First point a vertex on mesh.', ...
+            ' Second point is endpoint of velocity vector.') );
 
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    % Callback functions for keyboard and mouse
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        [vertices, faces] = getMesh(meshname);
 
-    % Callback for mouse down on control points
-    function oncontrolsdown(src,event)
-        % get current mouse position, and remember old one
-        down_pos=get(gca,'currentpoint');
-        down_pos=[down_pos(1,1,1) down_pos(1,2,1)];
-        last_drag_pos=down_pos;
-        drag_pos=down_pos;
-        % keep track of control point positions at mouse down
-        g_Deform(gid).new_C = [get(C_plot,'XData')' get(C_plot,'YData')'];
-        % get index of closest control point
-        [~,ci] =  ...
-            min(sum((g_Deform(gid).new_C(:,1:2) - ...
-            repmat(down_pos,size(g_Deform(gid).new_C,1),1)).^2,2));
-        % keep track of mesh vertices at mouse down
-        down_V = get(g_Deform(gid).tsh,'Vertices');
-        down_V = down_V(:,1:2);
-        
-        % tell window that drag and up events should be handled by controls
-        set(gcf,'windowbuttonmotionfcn',@oncontrolsdrag)
-        set(gcf,'windowbuttonupfcn',@oncontrolsup)
-        set(gcf,'KeyPressFcn',@onkeypress)
-        if(strcmp('normal',get(gcf,'SelectionType')))
-            % left-click
-            down_type = 'left';
-        else
-            % other (right) click
-            down_type = 'right';
+        figure
+        trimesh(faces, vertices(:,1), vertices(:,2), 'color', 'k');
+        axis equal
+        axis manual
+        while 1
+            [ptsX, ptsY] = getpts; 
+            if mod(size(ptsY, 1), 2) ~= 0
+                disp( strcat('please remember to select an ', ...
+                    'even number of anchor points.\n') );
+                continue;
+            end
+            break;
         end
+        close(gcf)
+
+        complexPts = complex(ptsX, ptsY);
+
+        ptsFrom = complexPts(1:2:length(complexPts), :);
+        ptsTo = complexPts(2:2:length(complexPts), :);
+
+        indices = getIndex(ptsFrom, vertices);
+        hold on;
+        plotMovementVectors( ...
+            vertices(indices,1:2), ...
+            horzcat(real(ptsTo), imag(ptsTo)), ...
+            1 ...
+        );
         
-    end
-
-% Callback for mouse drag on control points
-    function oncontrolsdrag(src,event)
-        % keep last drag position
-        last_drag_pos=drag_pos;
-        % get current mouse position
-        drag_pos=get(gca,'currentpoint');
-        drag_pos=[drag_pos(1,1,1) drag_pos(1,2,1)];
-        if(strcmp('left',down_type))
-            % move selected control point by drag offset
-            g_Deform(gid).new_C(ci,:) = ...
-                g_Deform(gid).new_C(ci,:) + drag_pos-last_drag_pos;
-        end
-        update_positions();
-    end
-
-
-    function update_positions()
-        % update display positions
-        set(C_plot,'XData',g_Deform(gid).new_C(:,1));
-        set(C_plot,'YData',g_Deform(gid).new_C(:,2));
         
-        % update mesh positions
-        new_V = g_Deform(gid).tsh.Vertices;
-        for i = 1:length(g_Deform(gid).indices)
-            index = g_Deform(gid).indices(i);
-            new_V(index,1) = g_Deform(gid).new_C(i,1);
-            new_V(index,2) = g_Deform(gid).new_C(i,2);
-        end
+        velocities = ptsTo - complex(vertices(indices,1), vertices(indices,2));
+        [H,Aeq,beq] = poseOptimizationProblem(meshname, indices, velocities);
+        deta_dt = solveOptimizationProblem(H,Aeq,beq);
         
-        % update mesh positions
-        set(g_Deform(gid).tsh,'Vertices',new_V(:,1:2));
-    end
-
-% Callback for mouse release of control points
-    function oncontrolsup(src,event)
-        % Tell window to handle drag and up events itself
-        set(gcf,'windowbuttonmotionfcn','');
-        set(gcf,'windowbuttonupfcn','');
-        cur_V = get(g_Deform(gid).tsh,'Vertices');
-        cur_V = cur_V(:,1:2);
         
-        % scale window to fit
-        win_min = min([win_min; cur_V]);
-        win_max = max([win_max; cur_V]);
-        axis(reshape([win_min;win_max],1,2*size(cur_V,2)))
+        plotMovementVectors( ...
+            vertices, ...
+            vertices + horzcat( real(deta_dt), imag(deta_dt) ) ...
+        );
+        hold off;
     end
-
-    function onkeypress(src,event)
-        if(strcmp(event.Character,'r'))
-            
-            % Refresh the state of the mesh
-            g_Deform(gid).new_C = C;
-            update_positions();
-            
-        elseif(strcmp(event.Character,'u'))
-            update_positions();
-        end
-    end
-
 
     function SaveKeyframe(src, event)
         copyOfCurrent = {};
@@ -283,8 +214,6 @@ startDeformation = uicontrol(gcf,'Style','pushbutton',...
         
         keyframe = getKeyframe(meshname, whichKeyframe);
         set(g_Deform(gid).tsh,'Vertices',keyframe.Vertices(:,1:2));
-%         set(C_plot,'XData',keyframe.Vertices(:,1));
-%         set(C_plot,'YData',keyframe.Vertices(:,2));
     end
     
 
@@ -379,7 +308,11 @@ startDeformation = uicontrol(gcf,'Style','pushbutton',...
             end
             if t > 0 && showMovementVectors
                 hold on;
-                movementVectorsHandle = plotMovementVectors(oldF, newF, 3);
+                movementVectorsHandle = plotMovementVectors( ...
+                    horzcat(real(oldF), imag(oldF)), ...
+                    horzcat(real(newF), imag(newF)), ...
+                    3 ...
+                );
                 pause(0);
                 hold off;
                 oldF = newF;
