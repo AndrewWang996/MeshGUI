@@ -19,11 +19,11 @@ function G = meshToGraph(vertices, faces)
     edgeA = round(edges(:,1));
     edgeB = round(edges(:,2));
     
-    edgeLengths = getDistance( vertices(edgeA), vertices(edgeB) );
+    edgeLengths = getDistance( vertices(edgeA,1:2), vertices(edgeB,1:2) );
     G = graph(edgeA, edgeB, edgeLengths);
 end
 
 function dist = getDistance(p1, p2)
-    dist = abs(p1 - p2);
+    dist = abs(complex(p1(:,1),p1(:,2)) - complex(p2(:,1),p2(:,2)));
 end
 
