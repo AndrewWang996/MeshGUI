@@ -4,6 +4,7 @@ addpath Helpers/KeyframeHelpers;
 addpath Helpers/PlotHelpers;
 addpath Helpers/GUIHelpers;
 addpath Helpers/OptimizationHelpers;
+addpath Helpers/GraphHelpers;
 
 addpath WeightFunctions;
 
@@ -241,7 +242,7 @@ setVelocity = uicontrol(gcf,'Style','pushbutton',...
         
         % 0) set up spanning tree of mesh
         % + other precomputation        
-        [endNodes, weights, predecessor] = getSpanningTree(meshname);
+        [endNodes, distances, predecessor] = getSpanningTree(meshname);
         anchorIndices = getAnchorIndices(meshname);
         anchorIndex = anchorIndices(1); % only use the first anchor
         edgeVectors = complex(...
