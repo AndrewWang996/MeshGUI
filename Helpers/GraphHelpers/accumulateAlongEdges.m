@@ -6,12 +6,10 @@ function accumulatedValues = accumulateAlongEdges(tree, anchorIndex, values)
 % not really sure what the fastest method is for this...
 
 
-    T = dfsearch(tree, anchorIndex, 'edgetonew');
-    Ta = T(:,1);
-    Tb = T(:,2);
+    T = orderedDfs(tree, anchorIndex);
 
     accumulatedValues = zeros( size(values) );
-    for i = 1 : size(T,1)
-        accumulatedValues( Tb(i) ) = accumulatedValues( Ta(i) ) + values( Tb(i) );
+    for i = 1:length(T)
+        accumulatedValues(T(i,2),:) = accumulatedValues(T(i,1),:) + values(T(i,2),:);
     end
 end

@@ -14,7 +14,7 @@ axis equal;
 
 
 
-meshname = 'vert_bar';
+meshname = 'red_dragon';
 [V,F] = getMesh(meshname);
 cagepts = getCage(meshname);
 
@@ -240,91 +240,69 @@ setVelocity = uicontrol(gcf,'Style','pushbutton',...
             allFzbar(:,whichKeyframe) = keyframe.fzbar;
         end
         
+        allEta = conj(allFz) .* allFzbar;
+        
         % 0) set up spanning tree of mesh
         % + other precomputation        
-        [endNodes, distances, predecessor] = getSpanningTree(meshname);
         anchorIndices = getAnchorIndices(meshname);
         anchorIndex = anchorIndices(1); % only use the first anchor
+        edges = getSpanningTree(meshname);
+        endNodes = [edges(1:anchorIndex-1,:);...
+            anchorIndex, anchorIndex;...
+            edges(anchorIndex:end,:)];
         edgeVectors = complex(...
             vertices(endNodes(:,1),1) - vertices(endNodes(:,2),1),...
             vertices(endNodes(:,1),2) - vertices(endNodes(:,2),2)...
         );
-        dfsEdges = dfsearch( graph(endNodes(:,1), endNodes(:,2)), anchorIndex , 'edgetonew' );
+    
+        % 1) define logarithm of fz. 
+        % TODO: rewrite logFz to use spanning tree definition instead of
+        % this simple trick used in BDH
+        logFz = complex( log(abs(allFz)), angle(allFz(end,:)) + cumsum(angle(allFz./circshift(allFz, 1))) );
         
-            
-        % 1) do some magic log stuff
-        g = complex( log(abs(allFz)), angle(allFz(end)) + cumsum(angle(allFz./circshift(allFz, 1))) );
-            
-        
-        
-        function interpF = interpolate(wt, weightFunc)
-            weight = weightFunc(numKeyframes, wt);
-            
+        function interpF = interpolate(numTimesPerInterval)
+
             % 2) interpolate fz, eta, fzbar
-            % TODO: define fWtFun(wt) as linear matrix
-            % This is already given in BDH code...
-            interpFz = exp( g * weight );         
-            interpEta = ( allFz .* allFzbar ) * weight;
+            allTimes = linspace(0, 1, 1 + (numKeyframes - 1) * numTimesPerInterval);
+            weight = linearWeight( numKeyframes, allTimes );
+            interpFz = exp( logFz * weight );
+            % TODO: change the interpolation of eta to hermite spline
+            interpEta = allEta * weight;
             interpFzBar = interpEta ./ interpFz;
 
             % 3) integrate fz -> Phi, fzbar -> Psi by collecting edge
             % differences.
-            edgeDifferencesFz = edgeVectors .* (0.5 * (interpFz(endNodes(:,1)) + interpFz(endNodes(:,2))));
-            sparseDifferencesFz = sparse([endNodes(:,1); endNodes(:,2)], ...
-                                        [endNodes(:,2); endNodes(:,1)], ...
-                                        [-1 * edgeDifferencesFz; edgeDifferencesFz]);
-            edgeDifferencesFzBar = edgeVectors .* (0.5 * (interpFzBar(endNodes(:,1)) + interpFzBar(endNodes(:,2))));
-            sparseDifferencesFzBar = sparse([endNodes(:,1); endNodes(:,2)], ...
-                                        [endNodes(:,2); endNodes(:,1)], ...
-                                        [-1 * edgeDifferencesFzBar; edgeDifferencesFzBar]);
+            edgeDifferencesFz = - edgeVectors .* (0.5 * (interpFz(endNodes(:,1),:) + interpFz(endNodes(:,2),:)));
+            edgeDifferencesFzBar = - edgeVectors .* (0.5 * (interpFzBar(endNodes(:,1),:) + interpFzBar(endNodes(:,2),:)));
             
-            % Set Phi, Psi anchor values as defined in BDHI                        
-            Phi = zeros( size(C,1), 1 );
-            Psi = zeros( size(Phi) );
-            
+            % Set Phi, Psi anchor values as defined in BDHI
+            Psi = zeros( size(C, 1), 1 + (numKeyframes - 1) * numTimesPerInterval );
             mixedF = allVertices * weight;
-            Phi(anchorIndex) = mixedF(anchorIndex);
+            Phi = repmat(mixedF(anchorIndex,:), size(Psi,1), 1);
             
-            Psi(1) = 0;
             
             % Traverse the graph, accumulating edge values in Phi, Psi
-            for i = 1:length(dfsEdges)
-                currIndex = dfsEdges(i,2);
-                prevIndex = dfsEdges(i,1);
-                Phi(currIndex) = sparseDifferencesFz(prevIndex, currIndex) + Phi(prevIndex);
-                Psi(currIndex) = sparseDifferencesFzBar(prevIndex, currIndex) + Psi(currIndex);
-            end
+            Phi = Phi + accumulateAlongEdges(...
+                graph(endNodes(:,1), endNodes(:,2)),...
+                anchorIndex,...
+                edgeDifferencesFz...
+            );
+            Psi = Psi + accumulateAlongEdges(...
+                graph(endNodes(:,1), endNodes(:,2)),...
+                anchorIndex,...
+                edgeDifferencesFzBar...
+            );
             
             % 4) sum them together
             interpF = Phi + Psi;
         end
         
         % 5) display for various times t
-        n = 100;
-        increment = 1.0 / n;
-        oldF = allVertices(:,1);
-        for t = 0 : increment : 1
-            if exist('movementVectorsHandle', 'var') > 0
-                delete(movementVectorsHandle);
-            end
-            if t > 0 && showMovementVectors
-                hold on;
-                movementVectorsHandle = plotMovementVectors( ...
-                    horzcat(real(oldF), imag(oldF)), ...
-                    horzcat(real(newF), imag(newF)), ...
-                    3 ...
-                );
-                pause(0);
-                hold off;
-                oldF = newF;
-            end
-            newF = interpolate(t, @quadraticSplineWeight);
-            display(t);
-            set(g_Deform(gid).tsh, 'Vertices', [real(newF), imag(newF)]);
-            drawnow
-        end
-        if exist('movementVectorsHandle', 'var') > 0
-            delete(movementVectorsHandle);
+        nTimesPerInterval = 100;
+        interpF = interpolate(nTimesPerInterval);
+        for newF = interpF
+            set(g_Deform(gid).tsh, 'Vertices', [real(newF) imag(newF)]);
+            drawnow;
         end
         
     end
