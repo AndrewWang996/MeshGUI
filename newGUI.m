@@ -220,9 +220,6 @@ setVelocity = uicontrol(gcf,'Style','pushbutton',...
 
     function ShowAnimation(src,event)
         
-        % for debugging purposes
-        showMovementVectors = false;
-        
         numKeyframes = countKeyframes(meshname);
         allVertices = zeros(size(C,1), numKeyframes);
         allFz = zeros(size(C,1), numKeyframes);
@@ -298,8 +295,8 @@ setVelocity = uicontrol(gcf,'Style','pushbutton',...
         end
         
         % 5) display for various times t
-        nTimesPerInterval = 100;
-        interpF = interpolate(nTimesPerInterval);
+        numTimesPerInterval = 100;
+        interpF = interpolate(numTimesPerInterval);
         for newF = interpF
             set(g_Deform(gid).tsh, 'Vertices', [real(newF) imag(newF)]);
             drawnow;
