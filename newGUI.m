@@ -14,7 +14,7 @@ axis equal;
 
 
 
-meshname = 'vert_bar';
+meshname = 'square';
 [V,F] = getMesh(meshname);
 cagepts = getCage(meshname);
 
@@ -128,7 +128,7 @@ setVelocity = uicontrol(gcf,'Style','pushbutton',...
 
         indices = getIndex(ptsFrom, vertices);
         anchorIndices = getAnchorIndices(meshname);
-        anchorPositions = vertices(anchorIndices, 1) + 1i * vertices(anchorIndices, 2);
+        anchorPositions = complex(vertices(anchorIndices, 1), vertices(anchorIndices, 2));
 
         [newVerticesComplex, fz, fzbar, phi, psi] = deformBoundedDistortion([indices; anchorIndices], [ptsTo; anchorPositions], vertices, faces, cagePts);
         newVertices = [real(newVerticesComplex), imag(newVerticesComplex)];
@@ -253,6 +253,10 @@ setVelocity = uicontrol(gcf,'Style','pushbutton',...
         endNodes = [edges(1:anchorIndex-1,:);...
             anchorIndex, anchorIndex;...
             edges(anchorIndex:end,:)];
+        tree = graph(edges(:,1), edges(:,2));
+%         hold on;
+%         plotTree(vertices, edges);
+%         hold off;
         complexVertices = complex(vertices(:,1), vertices(:,2));
         edgeVectors = complexVertices(endNodes(:,2)) - complexVertices(endNodes(:,1));
         
@@ -280,20 +284,20 @@ setVelocity = uicontrol(gcf,'Style','pushbutton',...
 
             % 3) integrate fz -> Phi, fzbar -> Psi by collecting edge
             % differences.
-            edgeDifferencesFz = edgeVectors .* (0.5 * (interpFz(endNodes(:,1),:) + interpFz(endNodes(:,2),:)));
-            edgeDifferencesFzBar = edgeVectors .* (0.5 * (interpFzBar(endNodes(:,1),:) + interpFzBar(endNodes(:,2),:)));
+            edgeDifferencesFz = (edgeVectors / 2) .* (interpFz(endNodes(:,1),:) + interpFz(endNodes(:,2),:));
+            edgeDifferencesFzBar = (edgeVectors / 2) .* (interpFzBar(endNodes(:,1),:) + interpFzBar(endNodes(:,2),:));
             
             
             % Traverse the graph, accumulating edge values in Phi, Psi
             mixedF = allVertices * weight;
             Phi = accumulateAlongEdges(...
-                graph(endNodes(:,1), endNodes(:,2)),...
+                tree,...
                 anchorIndex,...
                 edgeDifferencesFz,...
                 mixedF(anchorIndex,:)... % Set Phi, Psi anchor values as defined in BDHI
             );
             Psi = accumulateAlongEdges(...
-                graph(endNodes(:,1), endNodes(:,2)),...
+                tree,...
                 anchorIndex,...
                 edgeDifferencesFzBar...
             );
