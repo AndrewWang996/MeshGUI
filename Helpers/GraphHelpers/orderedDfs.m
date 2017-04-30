@@ -17,7 +17,6 @@ function edges = orderedDfs(tree, root)
         else
             disp('something is wrong with your dfs');
         end
-        
     end
 
 end

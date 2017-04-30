@@ -228,7 +228,7 @@ setVelocity = uicontrol(gcf,'Style','pushbutton',...
         allFz = zeros(size(C,1), numKeyframes);
         allFzbar = zeros(size(C,1), numKeyframes);
         all_deta_dt = zeros(size(C,1), numKeyframes);
-        [vertices, faces] = getMesh(meshname);
+        vertices = getMesh(meshname);
         
         for whichKeyframe = 1:numKeyframes
             keyframe = getKeyframe(meshname, whichKeyframe);
@@ -253,15 +253,19 @@ setVelocity = uicontrol(gcf,'Style','pushbutton',...
         endNodes = [edges(1:anchorIndex-1,:);...
             anchorIndex, anchorIndex;...
             edges(anchorIndex:end,:)];
-        edgeVectors = complex(...
-            vertices(endNodes(:,1),1) - vertices(endNodes(:,2),1),...
-            vertices(endNodes(:,1),2) - vertices(endNodes(:,2),2)...
-        );
+        complexVertices = complex(vertices(:,1), vertices(:,2));
+        edgeVectors = complexVertices(endNodes(:,2)) - complexVertices(endNodes(:,1));
+        
     
         % 1) define logarithm of fz. 
-        % TODO: rewrite logFz to use spanning tree definition instead of
-        % this simple trick used in BDH
-        logFz = complex( log(abs(allFz)), angle(allFz(end,:)) + cumsum(angle(allFz./circshift(allFz, 1))) );
+        angleDiffs = accumulateAlongEdges(...
+            graph(endNodes(:,1), endNodes(:,2)),...
+            anchorIndex,...
+            angle( allFz(endNodes(:,2),:) ./ allFz(endNodes(:,1),:) ),...
+            angle( allFz(anchorIndex,:) )...
+        );
+        logFz = complex( log(abs(allFz)), angleDiffs );
+        
         
         function interpF = interpolate(numTimesPerInterval)
 
@@ -272,26 +276,23 @@ setVelocity = uicontrol(gcf,'Style','pushbutton',...
             % TODO: change the interpolation of eta to hermite spline
             interpEta = allEta * weight;
             % interpEta = getInterpolatedPoints(allEta, all_deta_dt, numTimesPerInterval);
-            interpFzBar = interpEta ./ interpFz;
+            interpFzBar = interpEta ./ conj(interpFz);
 
             % 3) integrate fz -> Phi, fzbar -> Psi by collecting edge
             % differences.
-            edgeDifferencesFz = - edgeVectors .* (0.5 * (interpFz(endNodes(:,1),:) + interpFz(endNodes(:,2),:)));
-            edgeDifferencesFzBar = - edgeVectors .* (0.5 * (interpFzBar(endNodes(:,1),:) + interpFzBar(endNodes(:,2),:)));
-            
-            % Set Phi, Psi anchor values as defined in BDHI
-            Psi = zeros( size(C, 1), 1 + (numKeyframes - 1) * numTimesPerInterval );
-            mixedF = allVertices * weight;
-            Phi = repmat(mixedF(anchorIndex,:), size(Psi,1), 1);
+            edgeDifferencesFz = edgeVectors .* (0.5 * (interpFz(endNodes(:,1),:) + interpFz(endNodes(:,2),:)));
+            edgeDifferencesFzBar = edgeVectors .* (0.5 * (interpFzBar(endNodes(:,1),:) + interpFzBar(endNodes(:,2),:)));
             
             
             % Traverse the graph, accumulating edge values in Phi, Psi
-            Phi = Phi + accumulateAlongEdges(...
+            mixedF = allVertices * weight;
+            Phi = accumulateAlongEdges(...
                 graph(endNodes(:,1), endNodes(:,2)),...
                 anchorIndex,...
-                edgeDifferencesFz...
+                edgeDifferencesFz,...
+                mixedF(anchorIndex,:)... % Set Phi, Psi anchor values as defined in BDHI
             );
-            Psi = Psi + accumulateAlongEdges(...
+            Psi = accumulateAlongEdges(...
                 graph(endNodes(:,1), endNodes(:,2)),...
                 anchorIndex,...
                 edgeDifferencesFzBar...
@@ -302,10 +303,11 @@ setVelocity = uicontrol(gcf,'Style','pushbutton',...
         end
         
         % 5) display for various times t
-        numTimesPerInterval = 100;
+        numTimesPerInterval = 3;
         interpF = interpolate(numTimesPerInterval);
         for newF = interpF
             set(g_Deform(gid).tsh, 'Vertices', [real(newF) imag(newF)]);
+            pause(0.3);
             drawnow;
         end
         
