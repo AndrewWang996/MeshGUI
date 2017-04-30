@@ -23,8 +23,3 @@ function Aeq = getAeqSingle(meshname, vertexIndex)
 end
 
 
-function d = dist(z1, z2)
-    d = abs(z1 - z2);
-end
-
-

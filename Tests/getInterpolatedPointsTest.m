@@ -1,4 +1,21 @@
-function getInterpolatedPoints()
+function getInterpolatedPointsTest()
+    % test no basic errors
+    %gIP_mesh();
+    gIP_basic();
+end
+
+
+function gIP_basic()
+    allEta = [1 2 3];
+    allDeta_dt = [1 0 8];
+    numFrames = length(allEta);
+    numTimesPerInterval = 100;
+    points = getInterpolatedPoints(allEta, allDeta_dt, numTimesPerInterval);
+    plot(linspace(0, numFrames - 1,numTimesPerInterval * (numFrames-1) + 1), points);
+%     disp(points);
+end
+
+function gIP_mesh()
     meshname = 'vert_bar';
     [V,F] = getMesh(meshname);
     

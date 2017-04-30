@@ -14,8 +14,8 @@ function points = getInterpolatedPoints(eta, deta_dt, numTimesPerInterval)
     times = times(1:end-1);
     
     timeMatrix = zeros(4, numTimesPerInterval);
-    timeMatrix(3,:) = ones(1, numTimesPerInterval);
-    for i=2:-1:1
+    timeMatrix(4,:) = ones(1, numTimesPerInterval);
+    for i=3:-1:1
         timeMatrix(i,:) = timeMatrix(i+1,:) .* times;
     end
     
@@ -31,3 +31,5 @@ function points = getInterpolatedPoints(eta, deta_dt, numTimesPerInterval)
     end
     points(:,end) = sum( coeffs(end-nVertices+1:end,:), 2);
 end
+
+

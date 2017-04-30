@@ -14,7 +14,7 @@ axis equal;
 
 
 
-meshname = 'red_dragon';
+meshname = 'vert_bar';
 [V,F] = getMesh(meshname);
 cagepts = getCage(meshname);
 
@@ -184,6 +184,9 @@ setVelocity = uicontrol(gcf,'Style','pushbutton',...
         [H,Aeq,beq] = poseOptimizationProblem(meshname, indices, velocities);
         deta_dt = solveOptimizationProblem(H,Aeq,beq);
         
+        whichKeyframe = 1;
+        save_deta_dt(meshname, whichKeyframe, deta_dt);
+        
         
         plotMovementVectors( ...
             vertices, ...
@@ -224,6 +227,7 @@ setVelocity = uicontrol(gcf,'Style','pushbutton',...
         allVertices = zeros(size(C,1), numKeyframes);
         allFz = zeros(size(C,1), numKeyframes);
         allFzbar = zeros(size(C,1), numKeyframes);
+        all_deta_dt = zeros(size(C,1), numKeyframes);
         [vertices, faces] = getMesh(meshname);
         
         for whichKeyframe = 1:numKeyframes
@@ -232,9 +236,11 @@ setVelocity = uicontrol(gcf,'Style','pushbutton',...
                 keyframe.Vertices(:,1),...
                 keyframe.Vertices(:,2)...
             );
-        
             allFz(:,whichKeyframe) = keyframe.fz;
             allFzbar(:,whichKeyframe) = keyframe.fzbar;
+            
+            deta_dt = get_deta_dt(meshname, whichKeyframe);
+            all_deta_dt(:,whichKeyframe) = deta_dt;
         end
         
         allEta = conj(allFz) .* allFzbar;
@@ -265,6 +271,7 @@ setVelocity = uicontrol(gcf,'Style','pushbutton',...
             interpFz = exp( logFz * weight );
             % TODO: change the interpolation of eta to hermite spline
             interpEta = allEta * weight;
+            % interpEta = getInterpolatedPoints(allEta, all_deta_dt, numTimesPerInterval);
             interpFzBar = interpEta ./ interpFz;
 
             % 3) integrate fz -> Phi, fzbar -> Psi by collecting edge
