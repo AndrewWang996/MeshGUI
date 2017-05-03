@@ -1,38 +1,64 @@
-function Beq = getBeq(meshname, vertexIndices, df_dt)
+function Beq = getBeq(meshname, vertexIndices, df_dt, whichKeyframe, anchorIndex)
     Beq = zeros( length(vertexIndices) , 1 );
     for i = 1 : length(vertexIndices)
-        Beq(i) = getBeqSingle(meshname, vertexIndices(i), df_dt(i));
+        Beq(i) = getBeqSingle(meshname, vertexIndices(i), df_dt(i), whichKeyframe, anchorIndex);
     end
 end
 
-function BeqSingle = getBeqSingle(meshname, vertexIndex, df_dt)
+function BeqSingle = getBeqSingle(meshname, vertexIndex, df_dt, whichKeyframe, anchorIndex)
     [V,F] = getMesh(meshname);
     
-    keyframe_1 = getKeyframe(meshname, 1);
-    keyframe_2 = getKeyframe(meshname, 2);
+    if whichKeyframe == 1
+        A = 1;
+        B = 2;
+    else
+        A = whichKeyframe - 1;
+        B = whichKeyframe;
+    end
     
-    pathIndices = getPathFromAnchor(meshname, vertexIndex);
+    pathIndices = getPathFromPoint(meshname, anchorIndex, vertexIndex);
+    
+    keyframe_A = getKeyframe(meshname, A);
+    keyframe_B = getKeyframe(meshname, B);
     
     
-    fz_1 = keyframe_1.fz;
-    fz_2 = keyframe_2.fz;
-    logFz_1 = getLogFz(meshname, 1);
-    logFz_2 = getLogFz(meshname, 2);
-    fzbar_1 = keyframe_1.fzbar;
     
+    fz_A = keyframe_A.fz;
+    fz_B = keyframe_B.fz;
+    logFz_A = getLogFz(meshname, A);
+    logFz_B = getLogFz(meshname, B);
+    fzbar_A = keyframe_A.fzbar;
+    fzbar_B = keyframe_B.fzbar;
+    
+    
+    function r = func_dfz_dt(ind)
+        if whichKeyframe == 1
+            r = fz_A(ind) .* (logFz_B(ind) - logFz_A(ind));
+        else
+            r = fz_B(ind) .* (logFz_B(ind) - logFz_A(ind));
+        end
+    end
+
+    eta = conj(fz_A) .* fzbar_A;
+    
+    function r = func_dfzbar_dt(ind)
+        if whichKeyframe == 1
+            r = eta(ind) .* conj( (logFz_A(ind) - logFz_B(ind)) ./ fz_A(ind) );
+        else
+            r = eta(ind) .* conj( (logFz_A(ind) - logFz_B(ind)) ./ fz_B(ind) );
+        end
+    end
     
     integral_dfz_dt = trapezoidSum( ...
         V, ...
         pathIndices, ...
-        @(ind) fz_1(ind) .* ( logFz_2(ind) - logFz_1(ind) ) ...
+        @func_dfz_dt ...
     );
-    
-    eta_1 = conj(fz_1) .* fzbar_1;
     
     integral_dfzbar_dt = trapezoidSum( ...
         V, ...
         pathIndices, ...
-        @(ind) eta_1(ind) .* conj( (logFz_1(ind) - logFz_2(ind)) ./ fz_1(ind) ) ...
+        @func_dfzbar_dt ...
     );
     
     BeqSingle = df_dt - ( integral_dfz_dt + integral_dfzbar_dt );
@@ -40,9 +66,9 @@ end
 
 
 function integralSum = trapezoidSum(vertices, pathIndices, func)
-    vert_comp = complex(vertices(:,1), vertices(:,2));
+    complex_vertices = complex(vertices(:,1), vertices(:,2));
     
-    weights = abs(vert_comp(pathIndices(2:end)) - vert_comp(pathIndices(1:end-1)));
+    weights = abs(complex_vertices(pathIndices(2:end)) - complex_vertices(pathIndices(1:end-1)));
     func_avgs = ( func(pathIndices(2:end)) + func(pathIndices(1:end-1)) ) / 2;
     
     integralSum = dot(weights, func_avgs);
