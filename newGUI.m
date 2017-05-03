@@ -14,7 +14,7 @@ axis equal;
 
 
 
-meshname = 'square';
+meshname = 'vert_bar';
 [V,F] = getMesh(meshname);
 cagepts = getCage(meshname);
 
@@ -57,7 +57,6 @@ function simple_deform(varargin)
     g_Deform(gid).indices = I;
     % keep track of control positions at mouse down
     g_Deform(gid).new_C = [];
-    g_Deform(gid).update_positions = @update_positions;
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % Set up plots
@@ -145,16 +144,23 @@ setVelocity = uicontrol(gcf,'Style','pushbutton',...
     return
     
     
+    
     function SetVelocity(src,event)
         disp( strcat('Select pairs of points. First point a vertex on mesh.', ...
             ' Second point is endpoint of velocity vector.') );
-
-        [vertices, faces] = getMesh(meshname);
-
+        
+        whichKeyframe = chooseKeyframe(meshname);
+        keyframe = getKeyframe(meshname, whichKeyframe);
+        vertices = keyframe.Vertices;
+        faces = keyframe.Faces;
+        
         figure
-        trimesh(faces, vertices(:,1), vertices(:,2), 'color', 'k');
-        axis equal
-        axis manual
+        trisurf(faces, vertices(:,1), vertices(:,2), ...
+            zeros(size(vertices,1),1));
+        view(2);
+        axis equal;
+        axis manual;
+        
         while 1
             [ptsX, ptsY] = getpts; 
             if mod(size(ptsY, 1), 2) ~= 0
@@ -164,7 +170,6 @@ setVelocity = uicontrol(gcf,'Style','pushbutton',...
             end
             break;
         end
-        close(gcf)
 
         complexPts = complex(ptsX, ptsY);
 
@@ -173,7 +178,7 @@ setVelocity = uicontrol(gcf,'Style','pushbutton',...
 
         indices = getIndex(ptsFrom, vertices);
         hold on;
-        plotMovementVectors( ...
+        df_dt_handles = plotMovementVectors( ...
             vertices(indices,1:2), ...
             horzcat(real(ptsTo), imag(ptsTo)), ...
             1 ...
@@ -181,14 +186,18 @@ setVelocity = uicontrol(gcf,'Style','pushbutton',...
         
         
         velocities = ptsTo - complex(vertices(indices,1), vertices(indices,2));
-        [H,Aeq,beq] = poseOptimizationProblem(meshname, indices, velocities);
+        % use the first vector as anchor
+        anchorIndex = indices(1);
+        indices = indices(2:end);
+        velocities = velocities - velocities(1,:);
+        velocities = velocities(2:end,:);
+        [H,Aeq,beq] = poseOptimizationProblem(meshname, indices, velocities, anchorIndex);
         deta_dt = solveOptimizationProblem(H,Aeq,beq);
         
-        whichKeyframe = 1;
         save_deta_dt(meshname, whichKeyframe, deta_dt);
         
         
-        plotMovementVectors( ...
+        deta_dt_handles = plotMovementVectors( ...
             vertices, ...
             vertices + horzcat( real(deta_dt), imag(deta_dt) ) ...
         );
@@ -254,6 +263,7 @@ setVelocity = uicontrol(gcf,'Style','pushbutton',...
             anchorIndex, anchorIndex;...
             edges(anchorIndex:end,:)];
         tree = graph(edges(:,1), edges(:,2));
+%         figure
 %         hold on;
 %         plotTree(vertices, edges);
 %         hold off;
@@ -270,7 +280,6 @@ setVelocity = uicontrol(gcf,'Style','pushbutton',...
         );
         logFz = complex( log(abs(allFz)), angleDiffs );
         
-        
         function interpF = interpolate(numTimesPerInterval)
 
             % 2) interpolate fz, eta, fzbar
@@ -278,8 +287,8 @@ setVelocity = uicontrol(gcf,'Style','pushbutton',...
             weight = linearWeight( numKeyframes, allTimes );
             interpFz = exp( logFz * weight );
             % TODO: change the interpolation of eta to hermite spline
-            interpEta = allEta * weight;
-            % interpEta = getInterpolatedPoints(allEta, all_deta_dt, numTimesPerInterval);
+            % interpEta = allEta * weight;
+            interpEta = getInterpolatedPoints(allEta, all_deta_dt, numTimesPerInterval);
             interpFzBar = interpEta ./ conj(interpFz);
 
             % 3) integrate fz -> Phi, fzbar -> Psi by collecting edge
@@ -307,11 +316,11 @@ setVelocity = uicontrol(gcf,'Style','pushbutton',...
         end
         
         % 5) display for various times t
-        numTimesPerInterval = 3;
+        numTimesPerInterval = 200;
         interpF = interpolate(numTimesPerInterval);
         for newF = interpF
             set(g_Deform(gid).tsh, 'Vertices', [real(newF) imag(newF)]);
-            pause(0.3);
+%             pause(0.3);
             drawnow;
         end
         
