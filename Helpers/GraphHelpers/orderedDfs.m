@@ -1,6 +1,6 @@
 function edges = orderedDfs(tree, root)
     numVertices = numnodes(tree);
-    edges = dfsearch(tree, root, 'edgetonew');
+    edges = bfsearch(tree, root, 'edgetonew');
     
     visited = zeros(numVertices);
     visited(root) = 1;
