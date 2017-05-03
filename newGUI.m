@@ -5,6 +5,7 @@ addpath Helpers/PlotHelpers;
 addpath Helpers/GUIHelpers;
 addpath Helpers/OptimizationHelpers;
 addpath Helpers/GraphHelpers;
+addpath Helpers/InterpolationHelpers;
 
 addpath WeightFunctions;
 
@@ -14,7 +15,7 @@ axis equal;
 
 
 
-meshname = 'vert_bar';
+meshname = 'red_dragon';
 [V,F] = getMesh(meshname);
 cagepts = getCage(meshname);
 
@@ -151,7 +152,7 @@ setVelocity = uicontrol(gcf,'Style','pushbutton',...
         
         whichKeyframe = chooseKeyframe(meshname);
         keyframe = getKeyframe(meshname, whichKeyframe);
-        vertices = keyframe.Vertices;
+        vertices = keyframe.Vertices(:,1:2);
         faces = keyframe.Faces;
         
         figure
@@ -191,7 +192,7 @@ setVelocity = uicontrol(gcf,'Style','pushbutton',...
         indices = indices(2:end);
         velocities = velocities - velocities(1,:);
         velocities = velocities(2:end,:);
-        [H,Aeq,beq] = poseOptimizationProblem(meshname, indices, velocities, anchorIndex);
+        [H,Aeq,beq] = poseOptimizationProblem(meshname, indices, velocities, whichKeyframe, anchorIndex);
         deta_dt = solveOptimizationProblem(H,Aeq,beq);
         
         save_deta_dt(meshname, whichKeyframe, deta_dt);
