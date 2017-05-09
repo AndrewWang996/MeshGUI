@@ -6,9 +6,14 @@ In practice n is commonly given as the number of keyframes while
 %}
 function w = linearWeight(n, t)
 
-t2 = t*(n-1)+1;
-i = floor(t2);
-w = zeros(n, 1);
-
-w(i) = 1+i-t2;
-if i<n, w(i+1) = t2-i; end
+    t2 = t*(n-1)+1;
+    indices = floor(t2);
+    w = zeros(n, length(t));
+   
+    for i = 1 : length(indices)
+        w( indices(i), i ) = 1 + indices(i) - t2(i);
+        if indices(i) < n
+            w( indices(i) + 1, i ) = t2(i) - indices(i);
+        end
+    end
+end
