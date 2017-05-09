@@ -186,7 +186,8 @@ setVelocity = uicontrol(gcf,'Style','pushbutton',...
         );
         
         
-        velocities = ptsTo - complex(vertices(indices,1), vertices(indices,2));
+        velocities_unamplified = ptsTo - complex(vertices(indices,1), vertices(indices,2));
+        velocities = 50 * velocities_unamplified;
         % use the first vector as anchor
         anchorIndex = indices(1);
         indices = indices(2:end);
@@ -317,7 +318,7 @@ setVelocity = uicontrol(gcf,'Style','pushbutton',...
         end
         
         % 5) display for various times t
-        numTimesPerInterval = 200;
+        numTimesPerInterval = 100;
         interpF = interpolate(numTimesPerInterval);
         for newF = interpF
             set(g_Deform(gid).tsh, 'Vertices', [real(newF) imag(newF)]);
