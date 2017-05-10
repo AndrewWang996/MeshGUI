@@ -17,7 +17,7 @@ function Aeq = getAeqSingle(meshname, vertexIndex, whichKeyframe, anchorIndex)
     
     Aeq = zeros( 1 , size(V, 1) );
     for i = 2 : length(pathIndices)
-        Aeq(i) = 1 / conj( fz( pathIndices(i) ) );
+        Aeq( pathIndices(i) ) = 1 / conj( fz( pathIndices(i) ) );
     end
 end
 
