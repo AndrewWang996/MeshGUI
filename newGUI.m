@@ -287,10 +287,13 @@ setVelocity = uicontrol(gcf,'Style','pushbutton',...
             % 2) interpolate fz, eta, fzbar
             allTimes = linspace(0, 1, 1 + (numKeyframes - 1) * numTimesPerInterval);
             weight = linearWeight( numKeyframes, allTimes );
-            interpFz = exp( logFz * weight );
-            % TODO: change the interpolation of eta to hermite spline
+            % interpFz = exp( logFz * weight );
+            interpFz = exp( getInterpolatedPointsBezier( logFz, numTimesPerInterval ) );
+           
             % interpEta = allEta * weight;
-            interpEta = getInterpolatedPoints(allEta, all_deta_dt, numTimesPerInterval);
+                % Use linear interpolation
+            interpEta = getInterpolatedPointsHermite(allEta, all_deta_dt, numTimesPerInterval);
+                % Use hermite spline
             interpFzBar = interpEta ./ conj(interpFz);
 
             % 3) integrate fz -> Phi, fzbar -> Psi by collecting edge

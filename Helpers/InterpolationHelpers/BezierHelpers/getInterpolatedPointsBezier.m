@@ -5,7 +5,9 @@ function points = getInterpolatedPointsBezier(interpolated_points, numTimesPerIn
     
     control_points = getControlPoints(interpolated_points);
     
-    coeffs = getBezierCoefficients(control_points);
+    coeffs = getCoefficientsFromControlPoints(control_points);
 
+    points = getInterpolatedPoints(nVertices, nKeyframes, coeffs, numTimesPerInterval);
+    
 end
 
