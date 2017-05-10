@@ -1,14 +1,9 @@
-function points = getInterpolatedPoints(eta, deta_dt, numTimesPerInterval)
+function points = getInterpolatedPoints(nVertices, nKeyframes, coeffs, numTimesPerInterval)
 %% A horribly written piece of code that interpolates using Hermite splines
 % with input values and derivatives
 % numTimesPerInterval refers to how many time points we want to sample from
 % each interval.
-    nVertices = size(eta, 1);
-    nKeyframes = size(eta, 2);
     nKeyframePairs = nKeyframes - 1;
-    
-    coeffs = getHermiteCoefficients(eta, deta_dt);
-    
     
     times = linspace(0, 1, 1 + numTimesPerInterval);
     times = times(1:end-1);
