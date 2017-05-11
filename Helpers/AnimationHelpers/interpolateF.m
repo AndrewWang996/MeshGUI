@@ -4,7 +4,6 @@ function interpF = interpolateF(info, numTimesPerInterval)
     allVertices = info.allVertices;
     logFz = info.allLogFz;
     allEta = info.allEta;
-    all_deta_dt = info.all_deta_dt;
     endNodes = info.endNodes;
     
     tree = graph(endNodes(:,1), endNodes(:,2));
@@ -15,7 +14,7 @@ function interpF = interpolateF(info, numTimesPerInterval)
 
     % 2) interpolate fz, eta, fzbar
     interpFz = exp( getInterpolatedPointsBezier( logFz, numTimesPerInterval ) );
-    interpEta = getInterpolatedPointsHermite(allEta, all_deta_dt, numTimesPerInterval);
+    interpEta = getInterpolatedPointsBezier(allEta, numTimesPerInterval);
     interpFzBar = interpEta ./ conj(interpFz);
 
     % 3) integrate fz -> Phi, fzbar -> Psi by collecting edge
