@@ -18,7 +18,7 @@ function testDeform()
     complexPoints = points(:,1) + 1i * points(:,2);
     complexPoints(1) = 0 + 1i * 1;
     
-    [newVertices, fz, fzbar] = deformBoundedDistortion(indices, complexPoints, mesh, faces, cage);
+    [newVertices, fz, fzbar, phi, psi] = deformBoundedDistortion(indices, complexPoints, mesh, faces, cage);
     
     figure
     trimesh(faces,real(newVertices),imag(newVertices),'color','k');

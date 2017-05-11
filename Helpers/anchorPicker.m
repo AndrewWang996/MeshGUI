@@ -4,6 +4,7 @@ function indices = anchorPicker(filepath)
     else
         [V,F] = readOff(filepath);
     end
+    figure
 	trimesh(F, V(:,1), V(:,2), 'color', 'k');
     
     fprintf('select 2 anchor points in the interior\n');

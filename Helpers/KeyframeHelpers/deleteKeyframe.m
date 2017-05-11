@@ -3,8 +3,10 @@ function deleted = deleteKeyframe(meshname, whichKeyframe)
     keyframeFile = strcat(fileDirectory, 'keyframe_', int2str(whichKeyframe), '.mat');
     display(keyframeFile)
     if exist(keyframeFile, 'file') > 0
+        nKeyframes = countKeyframes(meshname);
         delete(keyframeFile);
-        for i = whichKeyframe + 1 : countKeyframes(meshname)
+        
+        for i = whichKeyframe + 1 : nKeyframes
             nextKeyframeFile = strcat(fileDirectory, 'keyframe_', int2str(i), '.mat');
             if exist(nextKeyframeFile, 'file') <= 0
                 break

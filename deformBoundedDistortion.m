@@ -1,4 +1,4 @@
-function [newVertices, fz, fzbar] = deformBoundedDistortion(handleIndices, newHandles, X, T, cage)
+function [newVertices, fz, fzbar, phi, psi] = deformBoundedDistortion(handleIndices, newHandles, X, T, cage)
     nhandles = numel(handleIndices);
 
     % Deformation bounds, seem to be reasonable from the paper (Fig. 4)
@@ -80,6 +80,8 @@ function [newVertices, fz, fzbar] = deformBoundedDistortion(handleIndices, newHa
     end
 
     newVertices = f;
+    phi = Phi;
+    psi = Psi;
     
     % Display deformed mesh
     
