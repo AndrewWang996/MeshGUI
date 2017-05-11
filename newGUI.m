@@ -6,6 +6,10 @@ addpath Helpers/GUIHelpers;
 addpath Helpers/OptimizationHelpers;
 addpath Helpers/GraphHelpers;
 addpath Helpers/InterpolationHelpers;
+addpath Helpers/InterpolationHelpers/BezierHelpers;
+addpath Helpers/InterpolationHelpers/HermiteHelpers;
+addpath Helpers/AnimationHelpers;
+
 
 addpath WeightFunctions;
 
@@ -20,7 +24,7 @@ meshname = 'red_dragon';
 cagepts = getCage(meshname);
 
 set(gcf, 'UserData', struct('meshname', meshname));
-set(gcf, 'Position', [0 200 800 500]);
+set(gcf, 'Position', [0 200 900 500]);
 
 simple_deform(V, F, meshname)
 
@@ -89,12 +93,6 @@ saveKeyframeButton = uicontrol(gcf,'Style','pushbutton',...
     'Position',[50 0 90 20],...
     'Callback', @SaveKeyframe);
 
-showKeyframeButton = uicontrol(gcf,'Style','slider',...
-    'String','Save Keyframe',...
-    'Position',[500 0 120 20]);
-addlistener(showKeyframeButton, ...
-    'ContinuousValueChange', @ShowKeyframe);
-
 showAnimation = uicontrol(gcf,'Style','pushbutton',...
     'String','Show Animation',...
     'Position',[200 0 90 20],...
@@ -109,6 +107,22 @@ setVelocity = uicontrol(gcf,'Style','pushbutton',...
     'String','Set Velocity',...
     'Position',[400 0 90 20],...
     'Callback',@SetVelocity);
+
+showConformalDistortion = uicontrol(gcf,'Style','pushbutton',...
+    'String','Conf. Dist.',...
+    'Position', [500 0 90 20], ...
+    'Callback', @ShowConformalDistortion);
+
+showIsometricDistortion = uicontrol(gcf,'Style','pushbutton',...
+    'String','Isom. Dist.',...
+    'Position', [600 0 90 20], ...
+    'Callback', @ShowIsometricDistortion);
+
+showKeyframeButton = uicontrol(gcf,'Style','slider',...
+    'String','Save Keyframe',...
+    'Position',[700 0 120 20]);
+addlistener(showKeyframeButton, ...
+    'ContinuousValueChange', @ShowKeyframe);
 
     function StartDeformation(src,event)
         disp('click pairs of points, 1st on the shape, 2nd on the desired new location')
@@ -140,11 +154,17 @@ setVelocity = uicontrol(gcf,'Style','pushbutton',...
         g_Deform(gid).psi = psi;
     end
 
+
     hold off;
-    
     return
     
-    
+    function ShowConformalDistortion(src,event)
+        drawAnimationWithConformalDistortion(meshname, g_Deform(gid).tsh, 100);
+    end
+
+    function ShowIsometricDistortion(src,event)
+        drawAnimationWithIsometricDistortion(meshname, g_Deform(gid).tsh, 100);
+    end
     
     function SetVelocity(src,event)
         disp( strcat('Select pairs of points. First point a vertex on mesh.', ...
@@ -166,7 +186,7 @@ setVelocity = uicontrol(gcf,'Style','pushbutton',...
             [ptsX, ptsY] = getpts; 
             if mod(size(ptsY, 1), 2) ~= 0
                 disp( strcat('please remember to select an ', ...
-                    'even number of anchor points.\n') );
+                    'even number of points.\n') );
                 continue;
             end
             break;
@@ -233,102 +253,7 @@ setVelocity = uicontrol(gcf,'Style','pushbutton',...
     
 
     function ShowAnimation(src,event)
-        
-        numKeyframes = countKeyframes(meshname);
-        allVertices = zeros(size(C,1), numKeyframes);
-        allFz = zeros(size(C,1), numKeyframes);
-        allFzbar = zeros(size(C,1), numKeyframes);
-        all_deta_dt = zeros(size(C,1), numKeyframes);
-        vertices = getMesh(meshname);
-        
-        for whichKeyframe = 1:numKeyframes
-            keyframe = getKeyframe(meshname, whichKeyframe);
-            allVertices(:,whichKeyframe) = complex(...
-                keyframe.Vertices(:,1),...
-                keyframe.Vertices(:,2)...
-            );
-            allFz(:,whichKeyframe) = keyframe.fz;
-            allFzbar(:,whichKeyframe) = keyframe.fzbar;
-            
-            deta_dt = get_deta_dt(meshname, whichKeyframe);
-            all_deta_dt(:,whichKeyframe) = deta_dt;
-        end
-        
-        allEta = conj(allFz) .* allFzbar;
-        
-        % 0) set up spanning tree of mesh
-        % + other precomputation        
-        anchorIndices = getAnchorIndices(meshname);
-        anchorIndex = anchorIndices(1); % only use the first anchor
-        edges = getSpanningTree(meshname);
-        endNodes = [edges(1:anchorIndex-1,:);...
-            anchorIndex, anchorIndex;...
-            edges(anchorIndex:end,:)];
-        tree = graph(edges(:,1), edges(:,2));
-%         figure
-%         hold on;
-%         plotTree(vertices, edges);
-%         hold off;
-        complexVertices = complex(vertices(:,1), vertices(:,2));
-        edgeVectors = complexVertices(endNodes(:,2)) - complexVertices(endNodes(:,1));
-        
-    
-        % 1) define logarithm of fz. 
-        angleDiffs = accumulateAlongEdges(...
-            graph(endNodes(:,1), endNodes(:,2)),...
-            anchorIndex,...
-            angle( allFz(endNodes(:,2),:) ./ allFz(endNodes(:,1),:) ),...
-            angle( allFz(anchorIndex,:) )...
-        );
-        logFz = complex( log(abs(allFz)), angleDiffs );
-        
-        function interpF = interpolate(numTimesPerInterval)
-
-            % 2) interpolate fz, eta, fzbar
-            allTimes = linspace(0, 1, 1 + (numKeyframes - 1) * numTimesPerInterval);
-            weight = linearWeight( numKeyframes, allTimes );
-            % interpFz = exp( logFz * weight );
-            interpFz = exp( getInterpolatedPointsBezier( logFz, numTimesPerInterval ) );
-           
-            % interpEta = allEta * weight;
-                % Use linear interpolation
-            interpEta = getInterpolatedPointsHermite(allEta, all_deta_dt, numTimesPerInterval);
-                % Use hermite spline
-            interpFzBar = interpEta ./ conj(interpFz);
-
-            % 3) integrate fz -> Phi, fzbar -> Psi by collecting edge
-            % differences.
-            edgeDifferencesFz = (edgeVectors / 2) .* (interpFz(endNodes(:,1),:) + interpFz(endNodes(:,2),:));
-            edgeDifferencesFzBar = (edgeVectors / 2) .* (interpFzBar(endNodes(:,1),:) + interpFzBar(endNodes(:,2),:));
-            
-            
-            % Traverse the graph, accumulating edge values in Phi, Psi
-            mixedF = allVertices * weight;
-            Phi = accumulateAlongEdges(...
-                tree,...
-                anchorIndex,...
-                edgeDifferencesFz,...
-                mixedF(anchorIndex,:)... % Set Phi, Psi anchor values as defined in BDHI
-            );
-            Psi = accumulateAlongEdges(...
-                tree,...
-                anchorIndex,...
-                edgeDifferencesFzBar...
-            );
-            
-            % 4) sum them together
-            interpF = Phi + Psi;
-        end
-        
-        % 5) display for various times t
-        numTimesPerInterval = 100;
-        interpF = interpolate(numTimesPerInterval);
-        for newF = interpF
-            set(g_Deform(gid).tsh, 'Vertices', [real(newF) imag(newF)]);
-%             pause(0.3);
-            drawnow;
-        end
-        
+        drawAnimation(meshname, g_Deform(gid).tsh, 100);
     end
 
 end
