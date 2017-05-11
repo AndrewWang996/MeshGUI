@@ -8,44 +8,47 @@ end
 function BeqSingle = getBeqSingle(meshname, vertexIndex, df_dt, whichKeyframe, anchorIndex)
     [V,F] = getMesh(meshname);
     
-    if whichKeyframe == 1
-        A = 1;
-        B = 2;
-    else
-        A = whichKeyframe - 1;
-        B = whichKeyframe;
-    end
     
     pathIndices = getPathFromPoint(meshname, anchorIndex, vertexIndex);
     
-    keyframe_A = getKeyframe(meshname, A);
-    keyframe_B = getKeyframe(meshname, B);
+    nKeyframes = countKeyframes(meshname);
+    allVertices = zeros(size(V,1), nKeyframes);
+    allFz = zeros(size(V,1), nKeyframes);
+    allFzbar = zeros(size(V,1), nKeyframes);
+    allLogFz = zeros(size(V,1), nKeyframes);
+
+    for i = 1:nKeyframes
+        keyframe = getKeyframe(meshname, i);
+        allVertices(:,i) = complex(...
+            keyframe.Vertices(:,1),...
+            keyframe.Vertices(:,2)...
+        );
+        allFz(:,i) = keyframe.fz;
+        allFzbar(:,i) = keyframe.fzbar;
+        
+        allLogFz(:,i) = getLogFz(meshname, i);
+    end
     
-    
-    
-    fz_A = keyframe_A.fz;
-    fz_B = keyframe_B.fz;
-    logFz_A = getLogFz(meshname, A);
-    logFz_B = getLogFz(meshname, B);
-    fzbar_A = keyframe_A.fzbar;
-    fzbar_B = keyframe_B.fzbar;
+    coeffs = getCoefficientsFromControlPoints(allLogFz);
     
     
     function r = func_dfz_dt(ind)
-        if whichKeyframe == 1
-            r = fz_A(ind) .* (logFz_B(ind) - logFz_A(ind));
+        if whichKeyframe < nKeyframes
+            r = coeffs(ind,3) .* allFz(ind, whichKeyframe);
         else
-            r = fz_B(ind) .* (logFz_B(ind) - logFz_A(ind));
+            r = (3 * coeffs(ind,1) + 2 * coeffs(ind,2) + coeffs(ind,3)) ...
+                .* allFz(ind, whichKeyframe);
         end
     end
 
-    eta = conj(fz_A) .* fzbar_A;
+    eta = conj( allFz(:,whichKeyframe) ) .* allFzbar(:,whichKeyframe);
     
     function r = func_dfzbar_dt(ind)
-        if whichKeyframe == 1
-            r = eta(ind) .* conj( (logFz_A(ind) - logFz_B(ind)) ./ fz_A(ind) );
+        if whichKeyframe < nKeyframes
+            r = eta(ind) .* conj( - coeffs(ind,3) ./ allFz(ind, whichKeyframe) );
         else
-            r = eta(ind) .* conj( (logFz_A(ind) - logFz_B(ind)) ./ fz_B(ind) );
+            r = eta(ind) .* conj( - (3 * coeffs(ind,1) + 2 * coeffs(ind,2) + coeffs(ind,3) ) ...
+                ./ allFz(ind, whichKeyframe) );
         end
     end
     

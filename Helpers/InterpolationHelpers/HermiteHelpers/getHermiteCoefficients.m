@@ -12,7 +12,7 @@ function coeffs = getHermiteCoefficients(eta, deta_dt)
     
     for i = 1:nKeyframePairs
         hBlock = [eta(:,i), eta(:,i+1), deta_dt(:,i), deta_dt(:,i+1)];
-        h(1:4, nVertices*(i-1) + 1:nVertices*i) = transpose(hBlock);
+        h(1:4, nVertices*(i-1)+1 : nVertices*i) = transpose(hBlock);
     end
     coeffs = transpose(B * h);
 end
